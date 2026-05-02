@@ -1,0 +1,21 @@
+{
+  "name": "@pi-browser-bridge/chrome-extension",
+  "version": "0.1.0",
+  "type": "module",
+  "private": true,
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@pi-browser-bridge/protocol": "workspace:*"
+  },
+  "scripts": {
+    "build": "vite build",
+    "dev": "vite",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@crxjs/vite-plugin": "^2.4.0",
+    "vite": "^8.0.10"
+  }
+}

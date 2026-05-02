@@ -6,6 +6,9 @@ out
 dist
 *.tgz
 
+# Chrome extension build output
+chrome-extension/dist/
+
 # code coverage
 coverage
 *.lcov

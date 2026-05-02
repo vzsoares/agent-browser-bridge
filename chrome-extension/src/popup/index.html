@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Pi Browser Bridge</title>
+    <link rel="stylesheet" href="./index.css" />
+  </head>
+  <body>
+    <header class="header">
+      <span class="title">Pi Browser Bridge</span>
+      <span class="version">v0.1.0</span>
+    </header>
+
+    <main class="main">
+      <!-- Connection Status -->
+      <section class="status-section">
+        <div class="status-row">
+          <span id="status-dot" class="status-dot disconnected"></span>
+          <span id="status-label" class="status-label disconnected">Disconnected</span>
+        </div>
+        <div class="info-row">
+          <span class="info-key">Port</span>
+          <span id="info-port" class="info-value">9242</span>
+        </div>
+        <div id="info-connected" class="info-row" style="display:none">
+          <span class="info-key">Connected since</span>
+          <span id="info-connected-at" class="info-value">—</span>
+        </div>
+      </section>
+
+      <!-- Enable/Disable Toggle -->
+      <section class="toggle-section">
+        <label class="toggle" for="bridge-toggle">
+          <input type="checkbox" id="bridge-toggle" checked />
+          <span class="toggle-slider"></span>
+          <span class="toggle-label">Bridge enabled</span>
+        </label>
+      </section>
+
+      <!-- Domain Allowlist -->
+      <label for="allowlist">Domain allowlist (one pattern per line):</label>
+      <textarea
+        id="allowlist"
+        placeholder="*&#10;github.com&#10;*.github.com&#10;example.com"
+      ></textarea>
+      <div class="hint">
+        <code>*</code> = allow all &ensp;
+        <code>example.com</code> = exact match &ensp;
+        <code>*.example.com</code> = subdomains<br />
+        Lines starting with <code>#</code> are ignored.
+      </div>
+      <div class="actions">
+        <button id="reset" type="button">Reset to *</button>
+        <button id="save" class="primary" type="button">Save</button>
+      </div>
+      <div id="status-msg" class="status"></div>
+    </main>
+
+    <footer class="footer">
+      <span class="footer-credit">Pi Browser Bridge</span>
+      <a class="footer-link" href="https://github.com/marco-souza/pi-browser-bridge" target="_blank">GitHub</a>
+    </footer>
+
+    <script type="module" src="./index.ts"></script>
+  </body>
+</html>
