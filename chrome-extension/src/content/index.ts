@@ -1449,7 +1449,7 @@ async function execHandler(params: unknown): Promise<ExecResponse> {
   // ── Evaluate the user code ───────────────────────────────────────────
   let raw: unknown;
   try {
-    raw = eval(code);
+    raw = (0, eval)(code);
   } catch (syncErr) {
     const msg = syncErr instanceof Error ? syncErr.message : String(syncErr);
     return {
@@ -1458,7 +1458,7 @@ async function execHandler(params: unknown): Promise<ExecResponse> {
     };
   }
 
-  // If eval returned a thenable, await it with timeout.
+  // If the evaluated code returned a thenable, await it with timeout.
   if (
     raw !== null &&
     typeof raw === "object" &&

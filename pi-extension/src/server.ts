@@ -270,7 +270,10 @@ function handleMessage(data: string): void {
 
   const response = message as Record<string, unknown>;
 
-  // Every message must carry an id to be routable
+  // Protocol-level keepalive — silently ignore
+  if (response.type === "ping") return;
+
+  // Every other message must carry an id to be routable
   if (typeof response.id !== "string" || response.id.length === 0) {
     console.error(
       "[pi-bridge] Received message without valid id:",
