@@ -21,10 +21,10 @@ let currentServer: ReturnType<typeof start> | null = null;
  * Start a fresh server on a dynamic (OS-assigned) port.
  * Stores the server for cleanup and returns the port.
  */
-function startOnDynamicPort(): number {
+async function startOnDynamicPort(): Promise<number> {
   stop();
   // Use port 0 so the OS picks a free port
-  currentServer = start(0);
+  currentServer = await start(0);
   return currentServer.port;
 }
 
@@ -57,8 +57,8 @@ function sleep(ms: number): Promise<void> {
 describe("send() — no browser connected", () => {
   let port: number;
 
-  beforeEach(() => {
-    port = startOnDynamicPort();
+  beforeEach(async () => {
+    port = await startOnDynamicPort();
   });
 
   afterEach(() => {
@@ -119,8 +119,8 @@ describe("send() — no browser connected", () => {
 describe("send() — request/response correlation", () => {
   let port: number;
 
-  beforeEach(() => {
-    port = startOnDynamicPort();
+  beforeEach(async () => {
+    port = await startOnDynamicPort();
   });
 
   afterEach(() => {
@@ -217,8 +217,8 @@ describe("send() — request/response correlation", () => {
 describe("send() — disconnection rejects pending", () => {
   let port: number;
 
-  beforeEach(() => {
-    port = startOnDynamicPort();
+  beforeEach(async () => {
+    port = await startOnDynamicPort();
   });
 
   afterEach(() => {
@@ -284,8 +284,8 @@ describe("send() — disconnection rejects pending", () => {
 describe("send() — concurrent requests", () => {
   let port: number;
 
-  beforeEach(() => {
-    port = startOnDynamicPort();
+  beforeEach(async () => {
+    port = await startOnDynamicPort();
   });
 
   afterEach(() => {
@@ -372,8 +372,8 @@ describe("send() — concurrent requests", () => {
 describe("onResponse() — response subscriptions", () => {
   let port: number;
 
-  beforeEach(() => {
-    port = startOnDynamicPort();
+  beforeEach(async () => {
+    port = await startOnDynamicPort();
   });
 
   afterEach(() => {
@@ -492,46 +492,46 @@ describe("start() / stop() lifecycle", () => {
     stop();
   });
 
-  test("start() returns a server instance with the given port", () => {
-    const srv = start(0);
+  test("start() returns a server instance with the given port", async () => {
+    const srv = await start(0);
     expect(srv).toBeDefined();
     expect(srv.port).toBeGreaterThan(0);
   });
 
-  test("start() defaults to port 9242 when no env or override", () => {
+  test("start() defaults to port 9242 when no env or override", async () => {
     stop();
     const prevEnv = process.env.PI_BROWSER_PORT;
     delete process.env.PI_BROWSER_PORT;
 
-    const srv = start();
+    const srv = await start();
     expect(srv.port).toBe(9242);
 
     if (prevEnv !== undefined) process.env.PI_BROWSER_PORT = prevEnv;
   });
 
-  test("start() respects PI_BROWSER_PORT env variable", () => {
+  test("start() respects PI_BROWSER_PORT env variable", async () => {
     stop();
     process.env.PI_BROWSER_PORT = "19999";
-    const srv = start();
+    const srv = await start();
     expect(srv.port).toBe(19999);
 
     delete process.env.PI_BROWSER_PORT;
   });
 
-  test("start() overrides env with explicit port", () => {
+  test("start() overrides env with explicit port", async () => {
     stop();
     process.env.PI_BROWSER_PORT = "19999";
-    const srv = start(0);
+    const srv = await start(0);
     expect(srv.port).toBeGreaterThan(0); // explicit 0 wins
     expect(srv.port).not.toBe(19999);
 
     delete process.env.PI_BROWSER_PORT;
   });
 
-  test("start() is idempotent — stops previous before starting new", () => {
-    const s1 = start(0);
+  test("start() is idempotent — stops previous before starting new", async () => {
+    const s1 = await start(0);
     const port1 = s1.port;
-    const s2 = start(0);
+    const s2 = await start(0);
     // Both calls should succeed; the second replaces the first
     expect(s2.port).toBeGreaterThan(0);
     // Different port because we used port 0 both times (OS assigns fresh)
@@ -539,7 +539,7 @@ describe("start() / stop() lifecycle", () => {
   });
 
   test("stop() clears connections so send() rejects with BROWSER_NOT_CONNECTED", async () => {
-    const srv = start(0);
+    const srv = await start(0);
     const port = srv.port;
     const ws = await connectClient(port);
 
@@ -559,7 +559,7 @@ describe("start() / stop() lifecycle", () => {
     });
 
     // After stop, new send() calls should reject (no active server)
-    const srv2 = start(0);
+    const srv2 = await start(0);
     // No client connected to new server
     await expect(
       send({ id: "after-stop", action: "read", params: {} }),
@@ -567,7 +567,7 @@ describe("start() / stop() lifecycle", () => {
   });
 
   test("stop() clears response subscribers", async () => {
-    const srv = start(0);
+    const srv = await start(0);
     const port = srv.port;
     const ws = await connectClient(port);
 
@@ -586,7 +586,7 @@ describe("start() / stop() lifecycle", () => {
 
     // After stop, subscription list should be cleared
     // Start a new server to verify
-    const srv2 = start(0);
+    const srv2 = await start(0);
     const ws2 = await connectClient(srv2.port);
 
     ws2.onmessage = (event) => {
@@ -601,8 +601,8 @@ describe("start() / stop() lifecycle", () => {
     ws2.close();
   });
 
-  test("double stop() is safe (idempotent)", () => {
-    start(0);
+  test("double stop() is safe (idempotent)", async () => {
+    await start(0);
     stop();
     stop(); // should not throw
     // No assertion needed — just shouldn't crash

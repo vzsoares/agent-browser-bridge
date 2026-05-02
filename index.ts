@@ -13,6 +13,6 @@ import { start } from "./pi-extension/src/server.js";
 const port = Number(process.env.PI_BROWSER_PORT) || 9242;
 
 console.log(`[pi-browser-bridge] Starting WebSocket server on ws://localhost:${port}`);
-start(port);
+const handle = await start(port);
 
-console.log("[pi-browser-bridge] Ready. Waiting for Chrome extension connection...");
+console.log(`[pi-browser-bridge] Ready on port ${handle.port}. Waiting for Chrome extension connection...`);

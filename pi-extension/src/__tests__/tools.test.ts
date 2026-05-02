@@ -35,7 +35,7 @@ async function withServer(
   fn: (port: number, ws: WebSocket) => Promise<void> | void,
 ): Promise<void> {
   // Start on dynamic port
-  const srv = start(0);
+  const srv = await start(0);
   const port = srv.port;
 
   const ws = await new Promise<WebSocket>((resolve, reject) => {

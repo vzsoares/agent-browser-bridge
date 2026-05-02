@@ -47,9 +47,9 @@ let currentServer: ReturnType<typeof start> | null = null;
  * Start a fresh server on a dynamic (OS-assigned) port.
  * Stores the server for cleanup and returns the port.
  */
-function startOnDynamicPort(): number {
+async function startOnDynamicPort(): Promise<number> {
   stop();
-  currentServer = start(0);
+  currentServer = await start(0);
   return currentServer.port;
 }
 
@@ -403,8 +403,8 @@ function expectDeepEqual(actual: any, expected: any) {
 describe("E2E: Full round-trips", () => {
   let port: number;
 
-  beforeEach(() => {
-    port = startOnDynamicPort();
+  beforeEach(async () => {
+    port = await startOnDynamicPort();
   });
 
   afterEach(() => {
@@ -706,8 +706,8 @@ describe("E2E: Full round-trips", () => {
 describe("E2E: Concurrent requests", () => {
   let port: number;
 
-  beforeEach(() => {
-    port = startOnDynamicPort();
+  beforeEach(async () => {
+    port = await startOnDynamicPort();
   });
 
   afterEach(() => {
@@ -833,8 +833,8 @@ describe("E2E: Concurrent requests", () => {
 describe("E2E: Error handling", () => {
   let port: number;
 
-  beforeEach(() => {
-    port = startOnDynamicPort();
+  beforeEach(async () => {
+    port = await startOnDynamicPort();
   });
 
   afterEach(() => {
@@ -1027,8 +1027,8 @@ describe("E2E: Error handling", () => {
 describe("E2E: Reconnection", () => {
   let port: number;
 
-  beforeEach(() => {
-    port = startOnDynamicPort();
+  beforeEach(async () => {
+    port = await startOnDynamicPort();
   });
 
   afterEach(() => {
@@ -1122,8 +1122,8 @@ describe("E2E: Reconnection", () => {
 describe("E2E: Edge cases", () => {
   let port: number;
 
-  beforeEach(() => {
-    port = startOnDynamicPort();
+  beforeEach(async () => {
+    port = await startOnDynamicPort();
   });
 
   afterEach(() => {
@@ -1184,9 +1184,9 @@ describe("E2E: Edge cases", () => {
     ws.close();
   });
 
-  test("start() uses dynamic port 0 and returns correct port", () => {
+  test("start() uses dynamic port 0 and returns correct port", async () => {
     stop();
-    const srv = start(0);
+    const srv = await start(0);
 
     // Dynamic port should be in the ephemeral range
     expect(srv.port).toBeGreaterThan(0);
@@ -1197,8 +1197,8 @@ describe("E2E: Edge cases", () => {
     expect(checkPromise).resolves.toBeDefined();
   });
 
-  test("stop() is idempotent when called multiple times", () => {
-    start(0);
+  test("stop() is idempotent when called multiple times", async () => {
+    await start(0);
     stop();
     stop(); // should not throw
     stop(); // should not throw
