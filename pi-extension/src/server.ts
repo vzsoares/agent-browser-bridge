@@ -65,9 +65,6 @@ app.get(
   upgradeWebSocket(() => ({
     onOpen(_event, ws) {
       wsConnections.add(ws.raw as WebSocket);
-      console.log(
-        `[pi-bridge] Browser extension connected (total: ${wsConnections.size})`,
-      );
     },
     onMessage(event, _ws) {
       // Hono's upgradeWebSocket decodes non-binary messages as UTF-8 strings
@@ -75,9 +72,6 @@ app.get(
     },
     onClose(_event, ws) {
       wsConnections.delete(ws.raw as WebSocket);
-      console.log(
-        `[pi-bridge] Browser extension disconnected (total: ${wsConnections.size})`,
-      );
       if (wsConnections.size === 0) {
         rejectAllPending();
       }
@@ -356,10 +350,6 @@ export function start(port?: number): ServerHandle {
   const boundPort =
     typeof addr === "object" && addr !== null ? addr.port : effectivePort;
 
-  console.log(
-    `[pi-bridge] WebSocket server listening on ws://localhost:${boundPort}`,
-  );
-
   // Create handle for lifecycle management
   serverHandle = {
     port: boundPort,
@@ -382,7 +372,6 @@ export function start(port?: number): ServerHandle {
 
       // Stop the HTTP server
       httpServer.close();
-      console.log("[pi-bridge] WebSocket server stopped");
     },
   };
 
