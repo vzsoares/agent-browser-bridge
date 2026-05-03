@@ -19,6 +19,8 @@ import { send } from "../server.js";
 
 /** Validated parameters for the `browser_wait_for_element` tool. */
 export interface BrowserWaitForElementParams {
+  /** Target tab ID. When omitted, defaults to the active tab. */
+  tabId?: number;
   /** CSS selector of the element to wait for. */
   selector: string;
   /** Maximum time to wait (ms). @default 10000 */
@@ -62,6 +64,10 @@ interface ToolResult {
 export const BROWSER_WAIT_FOR_ELEMENT_SCHEMA = {
   type: "object",
   properties: {
+    tabId: {
+      type: "integer",
+      description: "Target tab ID. When omitted, defaults to the active tab.",
+    },
     selector: {
       type: "string",
       description: "CSS selector of the element to wait for.",
@@ -81,6 +87,8 @@ export const BROWSER_WAIT_FOR_ELEMENT_SCHEMA = {
 function validateParams(raw: unknown): raw is BrowserWaitForElementParams {
   if (typeof raw !== "object" || raw === null) return false;
   const p = raw as Record<string, unknown>;
+
+  if (p.tabId !== undefined && (typeof p.tabId !== "number" || !Number.isInteger(p.tabId))) return false;
 
   if (typeof p.selector !== "string" || p.selector.length === 0) return false;
 
@@ -134,6 +142,7 @@ export async function browserWaitForElement(
       id: crypto.randomUUID(),
       action: "waitForElement",
       params: {
+        tabId: params.tabId,
         selector: params.selector,
         timeout,
       } satisfies WaitForElementParams,
@@ -190,7 +199,7 @@ export async function browserWaitForElement(
 export const browserWaitForElementTool = {
   name: "browser_wait_for_element",
   description:
-    "Wait for an element matching a CSS selector to appear in the DOM. Uses MutationObserver + polling for efficiency. Returns the element's tag name and time elapsed when found, or TIMEOUT if the element doesn't appear within the deadline.",
+    "Wait for an element matching a CSS selector to appear in the DOM. Optionally target a specific tab via tabId; when omitted, defaults to the active tab. Uses MutationObserver + polling for efficiency. Returns the element's tag name and time elapsed when found, or TIMEOUT if the element doesn't appear within the deadline.",
   schema: BROWSER_WAIT_FOR_ELEMENT_SCHEMA,
   execute: browserWaitForElement,
 } as const;

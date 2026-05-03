@@ -5,7 +5,7 @@
 ```mermaid
 flowchart LR
     pi["🧠 pi agent\n(terminal)"]<-->|"ws://localhost:9242"| ext["🔌 Chrome Extension"]
-    ext<-->|DOM| browser["🌐 Browser Tab"]
+    ext<-->|DOM| browser["🌐 Browser Tabs"]
 ```
 
 ## What it does
@@ -72,7 +72,127 @@ browser_wait_for_text({ text: "Success" })
 browser_exec({ code: "document.querySelectorAll('a').length" })
 ```
 
+**Manage tabs**
+```ts
+const tab = browser_create_tab({ url: "https://example.com" })
+browser_list_tabs({ urlPattern: "github.com" })
+browser_close_tab({ tabId: tab.tabId })
+```
+
 [Full API reference →](https://github.com/marco-souza/pi-browser-bridge/blob/main/docs/api.md)
+
+## Multi-tab support
+
+pi-browser-bridge supports **multi-tab operation** — multiple pi agents can
+operate simultaneously in separate browser tabs without interfering with each
+other or with the user's own browsing.
+
+### How it works
+
+Each browser tool accepts an optional `tabId` parameter to target a specific
+tab. When `tabId` is omitted:
+
+| Action | Default behavior |
+|--------|------------------|
+| `browser_navigate` | **Creates a new tab** and navigates there |
+| All other tools | Targets the **active tab** |
+
+Every response includes the `tabId` of the tab that was operated on, so agents
+can track which tab they're working with.
+
+### New tab management tools
+
+| Tool | Parameters | Returns |
+|------|-----------|---------|
+| `browser_create_tab` | `url?` — URL to open (blank if omitted)<br/>`active?` — make it the foreground tab (default: `true`) | `{ tabId, url, title }` |
+| `browser_list_tabs` | `urlPattern?` — filter by URL substring<br/>`currentWindowOnly?` — limit to current window (default: `true`) | Array of `{ tabId, url, title, active }` |
+| `browser_close_tab` | `tabId` — tab to close (required) | `{ closed: true }` |
+
+### The `tabId` parameter
+
+All tools accept `tabId?: number` to target a specific tab:
+
+| Tool | `tabId` behavior |
+|------|------------------|
+| `browser_navigate` | Navigate the given tab in-place. Without `tabId`, creates a new tab. |
+| `browser_click` | Click in the given tab. Without `tabId`, clicks in the active tab. |
+| `browser_type` | Type in the given tab. Without `tabId`, types in the active tab. |
+| `browser_read` | Read from the given tab. Without `tabId`, reads the active tab. |
+| `browser_screenshot` | Screenshot the given tab. ⚠️ **v1 limitation**: `tabId` is ignored — always captures the active tab (see below). |
+| `browser_exec` | Execute JS in the given tab. Without `tabId`, executes in the active tab. |
+| `browser_wait_for_element` | Wait in the given tab. Without `tabId`, waits in the active tab. |
+| `browser_wait_for_text` | Wait in the given tab. Without `tabId`, waits in the active tab. |
+| `browser_create_tab` | N/A — creates a new tab and returns its `tabId`. |
+| `browser_list_tabs` | N/A — lists all open tabs. |
+| `browser_close_tab` | `tabId` is required. |
+
+If a specified `tabId` no longer exists (the tab was closed), the tool returns
+a `TAB_NOT_FOUND` error.
+
+### ⚠️ Navigate behavior change (breaking)
+
+**Before v2:** `browser_navigate({ url: "..." })` navigated the active tab in-place.
+
+**After v2:** `browser_navigate({ url: "..." })` creates a **new tab** and navigates there.
+
+This change prevents agents from hijacking the user's active tab in a multi-agent
+workflow.
+
+**Migration guide:**
+
+```ts
+// Old: navigated the active tab
+browser_navigate({ url: "https://example.com" })
+
+// New: navigate a specific tab in-place (get tabId from createTab or listTabs)
+const tabs = browser_list_tabs({ urlPattern: "example.com" })
+// or
+const tab = browser_create_tab()
+browser_navigate({ url: "https://example.com", tabId: tab.tabId })
+```
+
+### ⚠️ Screenshot limitation
+
+`browser_screenshot` uses Chrome's `captureVisibleTab` API, which can only
+capture the **active tab in the focused window**. Passing a `tabId` to
+screenshot a background tab is not supported in v1.
+
+To screenshot a specific tab, bring it to the front first:
+
+```ts
+// Bring tab to front by navigating to its URL with active: true
+browser_navigate({ url: "https://example.com", tabId: targetTabId })
+// Then screenshot (captures the now-active tab)
+browser_screenshot()
+```
+
+### Multi-agent example
+
+Run two pi agents in separate terminal sessions. Each gets its own tab:
+
+```ts
+// ── Agent A: fills out a registration form ─────────────────────
+const tabA = browser_create_tab({ url: "https://app.example.com/register" })
+
+browser_type({ tabId: tabA.tabId, selector: "#email", text: "alice@example.com" })
+browser_type({ tabId: tabA.tabId, selector: "#password", text: "s3cur3" })
+browser_click({ tabId: tabA.tabId, selector: "button", text: "Sign Up" })
+browser_wait_for_text({ tabId: tabA.tabId, text: "Welcome" })
+
+// ── Agent B: scrapes a dashboard simultaneously ────────────────
+const tabB = browser_create_tab({ url: "https://app.example.com/dashboard" })
+
+browser_wait_for_element({ tabId: tabB.tabId, selector: ".stats-grid" })
+const stats = browser_read({ tabId: tabB.tabId, selector: ".stats-grid" })
+browser_screenshot() // captures whichever tab is currently active
+
+// ── Clean up ───────────────────────────────────────────────────
+browser_close_tab({ tabId: tabA.tabId })
+browser_close_tab({ tabId: tabB.tabId })
+```
+
+Both agents work in parallel without race conditions — each targets its own
+tab via explicit `tabId`.
 
 ## How it works
 

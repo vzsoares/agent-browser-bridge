@@ -30,6 +30,7 @@ export async function executeReadUseCase(
   params: ValidatedReadParams,
 ): Promise<UseCaseResult<ReadResult>> {
   const response = await sendRequest(transport, "read", {
+    tabId: params.tabId,
     selector: params.selector,
     maxLength: params.maxLength,
   });

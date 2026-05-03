@@ -48,6 +48,7 @@ export async function executeNavigateUseCase(
 
   // ── Build and send request ────────────────────────────────────────
   const response = await sendRequest(transport, "navigate", {
+    tabId: params.tabId,
     url: params.url,
     waitUntil: params.waitUntil,
     timeout: params.timeout,

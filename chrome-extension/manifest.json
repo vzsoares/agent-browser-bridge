@@ -3,7 +3,7 @@
   "name": "Pi Browser Bridge",
   "version": "0.1.0",
   "description": "Bridge between the pi coding agent and the browser, enabling browser-based interactions and automation.",
-  "permissions": ["activeTab", "scripting", "storage"],
+  "permissions": ["activeTab", "scripting", "storage", "tabs"],
   "host_permissions": ["<all_urls>"],
   "background": {
     "service_worker": "src/background/background.ts"

@@ -28,6 +28,10 @@ export type {
   ExecResult,
   WaitForElementResult,
   WaitForTextResult,
+  CreateTabResult,
+  ListTabsResult,
+  CloseTabResult,
+  TabDescriptor,
 } from "./types.js";
 
 // ── Use cases ──────────────────────────────────────────────────────────────
@@ -40,3 +44,6 @@ export { executeReadUseCase } from "./read-usecase.js";
 export { executeExecUseCase } from "./exec-usecase.js";
 export { executeWaitForElementUseCase } from "./wait-for-element-usecase.js";
 export { executeWaitForTextUseCase } from "./wait-for-text-usecase.js";
+export { executeCreateTabUseCase } from "./create-tab-usecase.js";
+export { executeListTabsUseCase } from "./list-tabs-usecase.js";
+export { executeCloseTabUseCase } from "./close-tab-usecase.js";

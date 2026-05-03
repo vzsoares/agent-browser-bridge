@@ -26,6 +26,7 @@ export async function executeClickUseCase(
   params: ValidatedClickParams,
 ): Promise<UseCaseResult<ClickResult>> {
   const response = await sendRequest(transport, "click", {
+    tabId: params.tabId,
     selector: params.selector,
     text: params.text,
     timeout: params.timeout,

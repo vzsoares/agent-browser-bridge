@@ -1,18 +1,11 @@
 /**
- * browser_exec adapter — wires the ExecUseCase to pi's defineTool.
+ * browser_list_tabs adapter — wires the ListTabsUseCase to pi's defineTool.
  *
  * Defines the TypeBox parameter schema, delegates execution to the
  * application-layer use case via the infrastructure BridgeTransport, and
  * formats the result as pi-compatible text content blocks.
  *
- * Imports:
- *   domain/       — validated param types (for type narrowing)
- *   application/  — ExecUseCase, result types
- *   infrastructure/ — BridgeTransport factory
- *   pi SDK        — defineTool, AgentToolResult
- *   typebox       — Type.* schema builders
- *
- * @module adapters/browser-exec
+ * @module adapters/browser-list-tabs
  */
 
 import {
@@ -21,19 +14,19 @@ import {
 } from "@mariozechner/pi-coding-agent";
 import type { ErrorResponse } from "@pi-browser-bridge/protocol";
 import { type Static, Type } from "typebox";
-import { executeExecUseCase } from "../application/exec-usecase.js";
-import type { ExecResult } from "../application/types.js";
-import type { ValidatedExecParams } from "../domain/schemas.js";
+import { executeListTabsUseCase } from "../application/list-tabs-usecase.js";
+import type { ListTabsResult } from "../application/types.js";
+import type { ValidatedListTabsParams } from "../domain/schemas.js";
 import { createBridgeTransport } from "../infrastructure/ws-transport.js";
 
 // ── TypeBox Schema ────────────────────────────────────────────────────────
 
-export const ExecSchema = Type.Object({
-	tabId: Type.Optional(Type.Integer()),
-	code: Type.String(),
+export const ListTabsSchema = Type.Object({
+	urlPattern: Type.Optional(Type.String()),
+	currentWindowOnly: Type.Optional(Type.Boolean()),
 });
 
-export type ExecParams = Static<typeof ExecSchema>;
+export type ListTabsParams = Static<typeof ListTabsSchema>;
 
 // ── Helpers ───────────────────────────────────────────────────────────────
 
@@ -42,15 +35,10 @@ function textBlock(text: string) {
 }
 
 function formatError(err: ErrorResponse): string {
-	const lines = [`Exec failed: ${err.message}`];
+	const lines = [`List tabs failed: ${err.message}`];
 	if (err.code === "BROWSER_NOT_CONNECTED") {
 		lines.push(
 			"No browser extension is connected. Make sure the Pi Browser Bridge extension is installed and active.",
-		);
-	}
-	if (err.code === "TIMEOUT") {
-		lines.push(
-			"The JavaScript execution timed out. The code may contain an infinite loop or a long-running async operation.",
 		);
 	}
 	if (err.suggestion) lines.push(err.suggestion);
@@ -61,15 +49,15 @@ function formatError(err: ErrorResponse): string {
 
 async function execute(
 	_toolCallId: string,
-	params: ExecParams,
+	params: ListTabsParams,
 	_signal: AbortSignal | undefined,
 	_onUpdate: unknown,
 	_ctx: unknown,
 ): Promise<AgentToolResult<undefined>> {
 	const transport = createBridgeTransport();
-	const result = await executeExecUseCase(
+	const result = await executeListTabsUseCase(
 		transport,
-		params as unknown as ValidatedExecParams,
+		params as unknown as ValidatedListTabsParams,
 	);
 
 	if (!result.success) {
@@ -79,34 +67,37 @@ async function execute(
 		};
 	}
 
-	// The content script may embed an error structure in the result.
-	const raw = result.data as ExecResult & {
-		error?: { code: string; message: string; suggestion?: string };
-	};
+	const data = result.data as ListTabsResult;
 
-	if (raw?.error) {
-		const lines = [`Exec failed: ${raw.error.message}`];
-		if (raw.error.suggestion) lines.push(raw.error.suggestion);
-		return { content: [textBlock(lines.join("\n"))], details: undefined };
-	}
-
-	if (!raw || typeof raw.serialized !== "string") {
+	if (data.tabs.length === 0) {
 		return {
-			content: [textBlock("Exec returned no serialised output.")],
+			content: [textBlock("No tabs found matching the filter criteria.")],
 			details: undefined,
 		};
 	}
 
-	return { content: [textBlock(raw.serialized)], details: undefined };
+	const lines = data.tabs.map((tab) => {
+		const activeIndicator = tab.active ? " ★" : "";
+		return `[${tab.tabId}] ${tab.title || "(no title)"} — ${tab.url}${activeIndicator}`;
+	});
+
+	const header = `Found ${data.tabs.length} tab(s):`;
+	return {
+		content: [textBlock([header, ...lines].join("\n"))],
+		details: undefined,
+	};
 }
 
 // ── Tool Definition ───────────────────────────────────────────────────────
 
-export const browserExecTool = defineTool({
-	name: "browser_exec",
-	label: "Browser Exec",
+export const browserListTabsTool = defineTool({
+	name: "browser_list_tabs",
+	label: "Browser List Tabs",
 	description:
-		"Execute arbitrary JavaScript in the browser tab's page context. Optionally target a specific tab via tabId; when omitted, defaults to the active tab. Returns the serialized result. Has a 5-second timeout.",
-	parameters: ExecSchema,
+		"List open browser tabs. Optionally filter by URL or title substring via urlPattern, " +
+		"and limit to the current window via currentWindowOnly (default true). " +
+		"Returns an array of tab objects with tabId, url, title, and active status. " +
+		"Use this to find tab IDs for targeting other browser tools.",
+	parameters: ListTabsSchema,
 	execute,
 });

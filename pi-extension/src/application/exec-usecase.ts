@@ -30,6 +30,7 @@ export async function executeExecUseCase(
   params: ValidatedExecParams,
 ): Promise<UseCaseResult<ExecResult>> {
   const response = await sendRequest(transport, "exec", {
+    tabId: params.tabId,
     code: params.code,
   });
   if (!response.success) return response;

@@ -1,5 +1,5 @@
 /**
- * browser_navigate adapter — wires the NavigateUseCase to pi's defineTool.
+ * browser_create_tab adapter — wires the CreateTabUseCase to pi's defineTool.
  *
  * Defines the TypeBox parameter schema, delegates execution to the
  * application-layer use case via the infrastructure BridgeTransport, and
@@ -7,12 +7,12 @@
  *
  * Imports:
  *   domain/       — validated param types (for type narrowing)
- *   application/  — NavigateUseCase, result types
+ *   application/  — CreateTabUseCase, result types
  *   infrastructure/ — BridgeTransport factory
  *   pi SDK        — defineTool, AgentToolResult
  *   typebox       — Type.* schema builders
  *
- * @module adapters/browser-navigate
+ * @module adapters/browser-create-tab
  */
 
 import {
@@ -21,30 +21,19 @@ import {
 } from "@mariozechner/pi-coding-agent";
 import type { ErrorResponse } from "@pi-browser-bridge/protocol";
 import { type Static, Type } from "typebox";
-import { executeNavigateUseCase } from "../application/navigate-usecase.js";
-import type { NavigateResult } from "../application/types.js";
-import type { ValidatedNavigateParams } from "../domain/schemas.js";
+import { executeCreateTabUseCase } from "../application/create-tab-usecase.js";
+import type { CreateTabResult } from "../application/types.js";
+import type { ValidatedCreateTabParams } from "../domain/schemas.js";
 import { createBridgeTransport } from "../infrastructure/ws-transport.js";
 
 // ── TypeBox Schema ────────────────────────────────────────────────────────
 
-export const NavigateSchema = Type.Object(
-	{
-		tabId: Type.Optional(Type.Integer()),
-		url: Type.String(),
-		waitUntil: Type.Optional(
-			Type.Union([
-				Type.Literal("load"),
-				Type.Literal("domcontentloaded"),
-				Type.Literal("networkidle"),
-			]),
-		),
-		timeout: Type.Optional(Type.Integer({ minimum: 1 })),
-	},
-	{ default: { waitUntil: "load", timeout: 30000 } },
-);
+export const CreateTabSchema = Type.Object({
+	url: Type.Optional(Type.String()),
+	active: Type.Optional(Type.Boolean()),
+}, { default: { active: true } });
 
-export type NavigateParams = Static<typeof NavigateSchema>;
+export type CreateTabParams = Static<typeof CreateTabSchema>;
 
 // ── Helpers ───────────────────────────────────────────────────────────────
 
@@ -52,21 +41,8 @@ function textBlock(text: string) {
 	return { type: "text" as const, text };
 }
 
-function formatError(
-	err: ErrorResponse,
-	context?: { timeout?: number },
-): string {
-	const lines = [`Navigate failed: ${err.message}`];
-	if (err.code === "RESTRICTED_URL") {
-		lines.push(
-			"Cannot navigate to chrome://, edge://, or other restricted pages.",
-		);
-	}
-	if (err.code === "TIMEOUT" && context?.timeout !== undefined) {
-		lines.push(
-			`The page took longer than ${context.timeout}ms to load. Try increasing the timeout or check the URL.`,
-		);
-	}
+function formatError(err: ErrorResponse): string {
+	const lines = [`Create tab failed: ${err.message}`];
 	if (err.code === "BROWSER_NOT_CONNECTED") {
 		lines.push(
 			"No browser extension is connected. Make sure the Pi Browser Bridge extension is installed and active.",
@@ -80,33 +56,29 @@ function formatError(
 
 async function execute(
 	_toolCallId: string,
-	params: NavigateParams,
+	params: CreateTabParams,
 	_signal: AbortSignal | undefined,
 	_onUpdate: unknown,
 	_ctx: unknown,
 ): Promise<AgentToolResult<undefined>> {
 	const transport = createBridgeTransport();
-	// TypeBox applies defaults so params.url, .waitUntil, .timeout are all
-	// present at runtime. Cast for the use case's Zod-inferred type.
-	const result = await executeNavigateUseCase(
+	const result = await executeCreateTabUseCase(
 		transport,
-		params as unknown as ValidatedNavigateParams,
+		params as unknown as ValidatedCreateTabParams,
 	);
 
 	if (!result.success) {
 		return {
-			content: [
-				textBlock(formatError(result.error, { timeout: params.timeout })),
-			],
+			content: [textBlock(formatError(result.error))],
 			details: undefined,
 		};
 	}
 
-	const data = result.data as NavigateResult;
+	const data = result.data as CreateTabResult;
 	return {
 		content: [
 			textBlock(
-				`Navigated to: ${data.url}\nPage title: ${data.title || "(no title)"}`,
+				`Created tab ${data.tabId}: ${data.url || "(blank)"}\nPage title: ${data.title || "(no title)"}`,
 			),
 		],
 		details: undefined,
@@ -115,11 +87,11 @@ async function execute(
 
 // ── Tool Definition ───────────────────────────────────────────────────────
 
-export const browserNavigateTool = defineTool({
-	name: "browser_navigate",
-	label: "Browser Navigate",
+export const browserCreateTabTool = defineTool({
+	name: "browser_create_tab",
+	label: "Browser Create Tab",
 	description:
-		"Navigate the browser to a URL. Optionally target a specific tab via tabId; when omitted, defaults to the active tab or creates a new tab. Supports waiting for page load, DOMContentLoaded, or network idle.",
-	parameters: NavigateSchema,
+		"Create a new browser tab. Optionally specify a URL to open and whether the tab should become active (foreground). Returns the new tab's tabId, url, and title. The content script is automatically injected before the tool returns, so the tab is immediately ready for automation.",
+	parameters: CreateTabSchema,
 	execute,
 });

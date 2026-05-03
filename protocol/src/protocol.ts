@@ -21,7 +21,10 @@ export type Action =
   | "read"
   | "exec"
   | "waitForElement"
-  | "waitForText";
+  | "waitForText"
+  | "createTab"
+  | "listTabs"
+  | "closeTab";
 
 // ── Error codes ─────────────────────────────────────────────────────────────
 
@@ -42,6 +45,7 @@ export type Action =
  * | `BROWSER_NOT_CONNECTED` | No Chrome extension is connected to the WebSocket server. | Install and enable the Pi Browser Bridge Chrome extension. |
  * | `CONNECTION_RESET` | The WebSocket connection was lost during a request. | The bridge retries automatically. If it persists, restart the extension. |
  * | `UNKNOWN_ACTION` | The requested action is not recognised, or the request was malformed. | Check the action name against the supported actions: navigate, click, type, screenshot, read, exec. |
+ * | `TAB_NOT_FOUND` | The specified tabId does not correspond to any open tab. | The tab may have been closed. List tabs to find a valid tabId. |
  */
 export type ErrorCode =
   | "TIMEOUT"
@@ -53,7 +57,8 @@ export type ErrorCode =
   | "RESTRICTED_DOMAIN"
   | "BROWSER_NOT_CONNECTED"
   | "CONNECTION_RESET"
-  | "UNKNOWN_ACTION";
+  | "UNKNOWN_ACTION"
+  | "TAB_NOT_FOUND";
 
 // ── Error response ──────────────────────────────────────────────────────────
 
@@ -73,6 +78,8 @@ export interface ErrorResponse {
 
 /** Parameters for the `navigate` action. */
 export interface NavigateParams {
+  /** Target tab ID. When omitted, defaults to the active tab or creates a new tab. */
+  tabId?: number;
   /** Fully-qualified URL to navigate to. */
   url: string;
   /**
@@ -86,6 +93,8 @@ export interface NavigateParams {
 
 /** Parameters for the `screenshot` action. */
 export interface ScreenshotParams {
+  /** Target tab ID. Defaults to the active tab when omitted. */
+  tabId?: number;
   /** Image format. @default "png" */
   format?: "png" | "jpeg";
   /** JPEG quality (0–100). Only meaningful when format is `"jpeg"`. */
@@ -96,6 +105,8 @@ export interface ScreenshotParams {
 
 /** Parameters for the `read` action. */
 export interface ReadParams {
+  /** Target tab ID. Defaults to the active tab when omitted. */
+  tabId?: number;
   /** CSS selector scoping the read. Defaults to `body` when omitted. */
   selector?: string;
   /** Truncate returned text to this many characters. */
@@ -104,6 +115,8 @@ export interface ReadParams {
 
 /** Parameters for the `click` action. */
 export interface ClickParams {
+  /** Target tab ID. Defaults to the active tab when omitted. */
+  tabId?: number;
   /** CSS selector of the element to click. */
   selector: string;
   /** Optional text content the element must contain (for disambiguation). */
@@ -114,6 +127,8 @@ export interface ClickParams {
 
 /** Parameters for the `type` action. */
 export interface TypeParams {
+  /** Target tab ID. Defaults to the active tab when omitted. */
+  tabId?: number;
   /** CSS selector of the input element. */
   selector: string;
   /** Text to type into the element. */
@@ -128,6 +143,8 @@ export interface TypeParams {
 
 /** Parameters for the `exec` action. */
 export interface ExecParams {
+  /** Target tab ID. Defaults to the active tab when omitted. */
+  tabId?: number;
   /** JavaScript code to evaluate in the page context. */
   code: string;
 }
@@ -142,6 +159,8 @@ export interface ExecResult {
 
 /** Parameters for the `waitForElement` action. */
 export interface WaitForElementParams {
+  /** Target tab ID. Defaults to the active tab when omitted. */
+  tabId?: number;
   /** CSS selector of the element to wait for. */
   selector: string;
   /** Maximum time to wait for the element (ms). @default 10000 */
@@ -150,12 +169,36 @@ export interface WaitForElementParams {
 
 /** Parameters for the `waitForText` action. */
 export interface WaitForTextParams {
+  /** Target tab ID. Defaults to the active tab when omitted. */
+  tabId?: number;
   /** Case-sensitive text to wait for. */
   text: string;
   /** Optional CSS selector to limit the search scope. */
   scope?: string;
   /** Maximum time to wait for the text (ms). @default 10000 */
   timeout?: number;
+}
+
+/** Parameters for the `createTab` action. */
+export interface CreateTabParams {
+  /** URL to open in the new tab. */
+  url?: string;
+  /** Whether the new tab should become the active tab. @default true */
+  active?: boolean;
+}
+
+/** Parameters for the `listTabs` action. */
+export interface ListTabsParams {
+  /** Filter tabs by URL substring match. */
+  urlPattern?: string;
+  /** Only list tabs in the current window. @default true */
+  currentWindowOnly?: boolean;
+}
+
+/** Parameters for the `closeTab` action. */
+export interface CloseTabParams {
+  /** ID of the tab to close. */
+  tabId: number;
 }
 
 // ── Action-to-params mapping ────────────────────────────────────────────────
@@ -173,6 +216,9 @@ export interface ActionParams {
   exec: ExecParams;
   waitForElement: WaitForElementParams;
   waitForText: WaitForTextParams;
+  createTab: CreateTabParams;
+  listTabs: ListTabsParams;
+  closeTab: CloseTabParams;
 }
 
 // ── Request / Response ──────────────────────────────────────────────────────

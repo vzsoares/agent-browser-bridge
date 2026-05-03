@@ -30,6 +30,7 @@ export async function executeWaitForTextUseCase(
   params: ValidatedWaitForTextParams,
 ): Promise<UseCaseResult<WaitForTextResult>> {
   const response = await sendRequest(transport, "waitForText", {
+    tabId: params.tabId,
     text: params.text,
     scope: params.scope,
     timeout: params.timeout,

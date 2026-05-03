@@ -15,6 +15,8 @@ import { send } from "../server.js";
 
 /** Validated parameters for the `browser_screenshot` tool. */
 export interface BrowserScreenshotParams {
+  /** Target tab ID. Defaults to the active tab when omitted. */
+  tabId?: number;
   /** Image format. @default "png" */
   format?: "png" | "jpeg";
   /** JPEG quality (0–100). Ignored when format is `"png"`. @default 80 */
@@ -66,6 +68,10 @@ interface ToolResult {
 export const BROWSER_SCREENSHOT_SCHEMA = {
   type: "object",
   properties: {
+    tabId: {
+      type: "integer",
+      description: "Target tab ID. Defaults to the active tab when omitted.",
+    },
     format: {
       type: "string",
       enum: ["png", "jpeg"],
@@ -94,6 +100,8 @@ export const BROWSER_SCREENSHOT_SCHEMA = {
 function validateParams(raw: unknown): raw is BrowserScreenshotParams {
   if (typeof raw !== "object" || raw === null) return false;
   const p = raw as Record<string, unknown>;
+
+  if (p.tabId !== undefined && (typeof p.tabId !== "number" || !Number.isInteger(p.tabId))) return false;
 
   if (p.format !== undefined && p.format !== "png" && p.format !== "jpeg") {
     return false;
@@ -157,6 +165,7 @@ export async function browserScreenshot(
       id: crypto.randomUUID(),
       action: "screenshot",
       params: {
+        tabId: params.tabId,
         format,
         quality,
         fullPage,
@@ -230,7 +239,7 @@ export async function browserScreenshot(
 export const browserScreenshotTool = {
   name: "browser_screenshot",
   description:
-    "Capture a screenshot of the current browser tab. Returns a base64-encoded image in PNG or JPEG format. Full-page capture is viewport-only in v1.",
+    "Capture a screenshot of the current browser tab. Returns a base64-encoded image in PNG or JPEG format. Note: tabId is not supported for screenshots in v1; always captures the active tab. Full-page capture is viewport-only in v1.",
   schema: BROWSER_SCREENSHOT_SCHEMA,
   execute: browserScreenshot,
 } as const;

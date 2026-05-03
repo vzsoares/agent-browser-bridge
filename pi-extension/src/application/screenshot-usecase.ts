@@ -30,6 +30,7 @@ export async function executeScreenshotUseCase(
   params: ValidatedScreenshotParams,
 ): Promise<UseCaseResult<ScreenshotResult>> {
   const response = await sendRequest(transport, "screenshot", {
+    tabId: params.tabId,
     format: params.format,
     quality: params.quality,
     fullPage: params.fullPage,

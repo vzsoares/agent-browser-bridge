@@ -16,6 +16,11 @@ import { sleep } from "../domain/index.js";
 
 const injectedTabs = new Set<number>();
 
+/** Clear all injected tab state (for test setup). */
+export function resetInjectedTabs(): void {
+	injectedTabs.clear();
+}
+
 /** Mark a tab as having its content script verified. */
 export function markInjected(tabId: number): void {
 	injectedTabs.add(tabId);
@@ -76,6 +81,26 @@ export async function getTab(tabId: number): Promise<chrome.tabs.Tab | null> {
 	}
 }
 
+// ── Tab creation helpers ────────────────────────────────────────────────
+
+/**
+ * Create a new tab and wait for it to reach `status: "complete"`.
+ *
+ * @param url — URL to open in the new tab. If omitted, opens a blank tab.
+ * @param active — Whether the new tab should become the active tab. Defaults to `false`.
+ * @returns The created tab descriptor.
+ */
+export async function createTab(
+	url?: string,
+	active = false,
+): Promise<chrome.tabs.Tab> {
+	const tab = await chrome.tabs.create({ url, active });
+	if (!tab.id) {
+		throw new Error("Created tab has no id");
+	}
+	return tab;
+}
+
 // ── Tab update helpers ────────────────────────────────────────────────────
 
 /**
@@ -86,6 +111,54 @@ export async function updateTab(
 	url: string,
 ): Promise<chrome.tabs.Tab | undefined> {
 	return chrome.tabs.update(tabId, { url });
+}
+
+/**
+ * List all open tabs with optional filtering.
+ *
+ * @param urlPattern — Filter tabs whose URL contains this substring.
+ * @param currentWindowOnly — Only return tabs in the current window. Defaults to `true`.
+ * @returns Array of tab descriptors with id, url, title, and active status.
+ */
+export async function listTabs(
+	urlPattern?: string,
+	currentWindowOnly = true,
+): Promise<
+	Array<{ tabId: number; url: string; title: string; active: boolean }>
+> {
+	const tabs = await chrome.tabs.query({
+		currentWindow: currentWindowOnly,
+	});
+
+	return tabs
+		.filter((tab): tab is chrome.tabs.Tab & { id: number; url: string } =>
+			tab.id !== undefined && tab.url !== undefined,
+		)
+		.map((tab) => ({
+			tabId: tab.id,
+			url: tab.url,
+			title: tab.title ?? "",
+			active: tab.active ?? false,
+		}))
+		.filter((tab) => {
+			if (!urlPattern) return true;
+			return (
+				tab.url.includes(urlPattern) || tab.title.includes(urlPattern)
+			);
+		});
+}
+
+/**
+ * Close a tab by its ID.
+ *
+ * @param tabId — ID of the tab to close.
+ * @returns `true` if the tab was successfully closed.
+ * @throws If the tab doesn't exist (callers should check with `getTab` first).
+ */
+export async function closeTab(tabId: number): Promise<boolean> {
+	await chrome.tabs.remove(tabId);
+	removeInjected(tabId);
+	return true;
 }
 
 // ── Screenshot helpers ────────────────────────────────────────────────────
@@ -178,8 +251,8 @@ export async function forwardToContentScript(
 	maxRetries = 2,
 ): Promise<{
 	id: string;
-	result?: unknown;
-	error?: { code: string; message: string; suggestion?: string };
+	result?: { tabId: number } & Record<string, unknown>;
+	error?: { code: string; message: string; suggestion?: string; tabId?: number };
 }> {
 	for (let attempt = 0; attempt <= maxRetries; attempt++) {
 		try {
@@ -192,7 +265,11 @@ export async function forwardToContentScript(
 			}
 			return {
 				id: request.id,
-				error: { code: "BROWSER_NOT_CONNECTED", message: err },
+				error: {
+					code: "BROWSER_NOT_CONNECTED",
+					message: err,
+					tabId,
+				},
 			};
 		}
 
@@ -204,11 +281,20 @@ export async function forwardToContentScript(
 				typeof response === "object" &&
 				"id" in (response as object)
 			) {
-				return response as {
+				const resp = response as {
 					id: string;
-					result?: unknown;
+					result?: Record<string, unknown>;
 					error?: { code: string; message: string; suggestion?: string };
 				};
+				// Error responses pass through unchanged.
+				if (resp.error) {
+					return resp;
+				}
+				// Inject tabId into the result payload.
+				if (resp.result && typeof resp.result === "object") {
+					return { ...resp, result: { tabId, ...resp.result } };
+				}
+				return { ...resp, result: { tabId } };
 			}
 
 			return {
@@ -218,6 +304,7 @@ export async function forwardToContentScript(
 					message: "Invalid response from content script",
 					suggestion:
 						"The content script returned an unexpected response shape. Check the browser console for details.",
+					tabId,
 				},
 			};
 		} catch (e) {
@@ -232,9 +319,10 @@ export async function forwardToContentScript(
 				return {
 					id: request.id,
 					error: {
-						code: "BROWSER_NOT_CONNECTED",
-						message: `Tab ${tabId} was closed.`,
-						suggestion: "Re-open the tab and navigate to the desired page.",
+						code: "TAB_NOT_FOUND",
+						message: `Tab ${tabId} does not exist or has been closed.`,
+						suggestion: "Use listTabs to find a valid tabId.",
+						tabId,
 					},
 				};
 			}
@@ -258,6 +346,7 @@ export async function forwardToContentScript(
 					message: err,
 					suggestion:
 						"Check that the content script is loaded and the tab has a compatible page (not a restricted URL like chrome://).",
+					tabId,
 				},
 			};
 		}
@@ -269,6 +358,7 @@ export async function forwardToContentScript(
 		error: {
 			code: "UNKNOWN_ACTION",
 			message: "Forward failed after all retries.",
+			tabId,
 		},
 	};
 }

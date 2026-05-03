@@ -51,12 +51,19 @@ export const chromeTabsMock = {
 
   /** Set the list of mock tabs (replaces current state). */
   setTabs(tabs: MockTab[]): void {
-    mockTabs = tabs.map((t) => ({
-      id: t.id ?? nextTabId++,
-      index: t.index ?? 0,
-      windowId: t.windowId ?? 1,
-      ...t,
-    }));
+    mockTabs = tabs.map((t) => {
+      const resolvedId = t.id ?? nextTabId++;
+      // Bump nextTabId past any explicitly-set ids
+      if (t.id !== undefined && t.id >= nextTabId) {
+        nextTabId = t.id + 1;
+      }
+      return {
+        id: resolvedId,
+        index: t.index ?? 0,
+        windowId: t.windowId ?? 1,
+        ...t,
+      };
+    });
   },
 
   /** Add a tab to the mock store. */
@@ -82,7 +89,87 @@ export const chromeTabsMock = {
     nextTabId = 1;
   },
 
+  /** Get the next tab id that would be assigned (for testing). */
+  getNextTabId(): number {
+    return nextTabId;
+  },
+
   // ── API methods ───────────────────────────────────────────────────
+
+  get: vi.fn(
+    (tabId: number): Promise<chrome.tabs.Tab | undefined> => {
+      const tab = mockTabs.find((t) => t.id === tabId);
+      if (!tab) return Promise.resolve(undefined);
+      return Promise.resolve({
+        id: tab.id!,
+        index: tab.index ?? 0,
+        windowId: tab.windowId ?? 1,
+        url: tab.url,
+        title: tab.title,
+        active: tab.active ?? false,
+        pinned: tab.pinned ?? false,
+        status: tab.status ?? "complete",
+      } as chrome.tabs.Tab);
+    },
+  ),
+
+  create: vi.fn(
+    (createProperties: chrome.tabs.CreateProperties): Promise<chrome.tabs.Tab> => {
+      const tab: MockTab = {
+        id: nextTabId++,
+        index: mockTabs.length,
+        windowId: createProperties.windowId ?? 1,
+        url: createProperties.url,
+        active: createProperties.active ?? false,
+        status: "complete",
+      };
+      mockTabs.push(tab);
+      return Promise.resolve({
+        id: tab.id!,
+        index: tab.index,
+        windowId: tab.windowId,
+        url: tab.url,
+        active: tab.active ?? false,
+        pinned: false,
+        status: tab.status,
+      } as chrome.tabs.Tab);
+    },
+  ),
+
+  update: vi.fn(
+    (tabId: number, updateProperties: chrome.tabs.UpdateProperties): Promise<chrome.tabs.Tab | undefined> => {
+      const idx = mockTabs.findIndex((t) => t.id === tabId);
+      if (idx === -1) return Promise.resolve(undefined);
+      if (updateProperties.url !== undefined) {
+        mockTabs[idx] = { ...mockTabs[idx], url: updateProperties.url };
+      }
+      if (updateProperties.active !== undefined) {
+        mockTabs[idx] = { ...mockTabs[idx], active: updateProperties.active };
+      }
+      const tab = mockTabs[idx];
+      return Promise.resolve({
+        id: tab.id!,
+        index: tab.index ?? 0,
+        windowId: tab.windowId ?? 1,
+        url: tab.url,
+        active: tab.active ?? false,
+        pinned: tab.pinned ?? false,
+        status: tab.status,
+      } as chrome.tabs.Tab);
+    },
+  ),
+
+  remove: vi.fn(
+    (tabId: number): Promise<void> => {
+      mockTabs = mockTabs.filter((t) => t.id !== tabId);
+      return Promise.resolve();
+    },
+  ),
+
+  /** Simulate a tab removal by removing it from the store. */
+  removeTabById(tabId: number): void {
+    mockTabs = mockTabs.filter((t) => t.id !== tabId);
+  },
 
   query: vi.fn(
     (

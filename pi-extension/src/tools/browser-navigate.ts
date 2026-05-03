@@ -19,6 +19,8 @@ import { send } from "../server.js";
 
 /** Validated parameters for the `browser_navigate` tool. */
 export interface BrowserNavigateParams {
+  /** Target tab ID. When omitted, defaults to the active tab or creates a new tab. */
+  tabId?: number;
   /** Fully-qualified URL to navigate to. */
   url: string;
   /**
@@ -62,6 +64,10 @@ const RESTRICTED_URL_RE = /^(chrome|chrome-extension|edge|brave|about):\/\//i;
 export const BROWSER_NAVIGATE_SCHEMA = {
   type: "object",
   properties: {
+    tabId: {
+      type: "integer",
+      description: "Target tab ID. When omitted, defaults to the active tab or creates a new tab.",
+    },
     url: {
       type: "string",
       description: "Fully-qualified URL to navigate to (e.g. https://example.com).",
@@ -95,6 +101,8 @@ export const BROWSER_NAVIGATE_SCHEMA = {
 function validateParams(raw: unknown): raw is BrowserNavigateParams {
   if (typeof raw !== "object" || raw === null) return false;
   const p = raw as Record<string, unknown>;
+
+  if (p.tabId !== undefined && (typeof p.tabId !== "number" || !Number.isInteger(p.tabId))) return false;
 
   if (typeof p.url !== "string" || p.url.length === 0) return false;
 
@@ -203,6 +211,7 @@ export async function browserNavigate(
       id: crypto.randomUUID(),
       action: "navigate",
       params: {
+        tabId: params.tabId,
         url: params.url,
         waitUntil,
         timeout,
@@ -265,7 +274,7 @@ export async function browserNavigate(
 export const browserNavigateTool = {
   name: "browser_navigate",
   description:
-    "Navigate the active browser tab to a URL. Returns the final URL after redirects and the page title. " +
+    "Navigate the browser to a URL. Optionally target a specific tab via tabId; when omitted, defaults to the active tab or creates a new tab. Returns the final URL after redirects and the page title. " +
     "Supports configurable wait strategies: 'load' (default), 'domcontentloaded', and 'networkidle' (v1 approximation).",
   schema: BROWSER_NAVIGATE_SCHEMA,
   execute: browserNavigate,

@@ -30,6 +30,7 @@ export async function executeWaitForElementUseCase(
   params: ValidatedWaitForElementParams,
 ): Promise<UseCaseResult<WaitForElementResult>> {
   const response = await sendRequest(transport, "waitForElement", {
+    tabId: params.tabId,
     selector: params.selector,
     timeout: params.timeout,
   });

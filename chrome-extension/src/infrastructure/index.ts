@@ -37,6 +37,7 @@ export {
 } from "./chrome-storage.js";
 export {
 	captureVisibleTab,
+	closeTab,
 	ensureContentScript,
 	executeScriptInTab,
 	forwardToContentScript,
@@ -45,6 +46,7 @@ export {
 	getTab,
 	isInjected,
 	isRestrictedUrl,
+	listTabs,
 	markInjected,
 	removeInjected,
 	sendMessageToTab,

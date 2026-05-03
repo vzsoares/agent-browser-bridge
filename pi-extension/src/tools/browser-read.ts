@@ -19,6 +19,8 @@ import { send } from "../server.js";
 
 /** Validated parameters for the `browser_read` tool. */
 export interface BrowserReadParams {
+  /** Target tab ID. When omitted, defaults to the active tab. */
+  tabId?: number;
   /** CSS selector scoping the read. Defaults to `body` when omitted. */
   selector?: string;
   /** Truncate returned text to this many characters. @default 50000 */
@@ -50,6 +52,10 @@ interface ToolResult {
 export const BROWSER_READ_SCHEMA = {
   type: "object",
   properties: {
+    tabId: {
+      type: "integer",
+      description: "Target tab ID. When omitted, defaults to the active tab.",
+    },
     selector: {
       type: "string",
       description:
@@ -71,6 +77,8 @@ export const BROWSER_READ_SCHEMA = {
 function validateParams(raw: unknown): raw is BrowserReadParams {
   if (typeof raw !== "object" || raw === null) return false;
   const p = raw as Record<string, unknown>;
+
+  if (p.tabId !== undefined && (typeof p.tabId !== "number" || !Number.isInteger(p.tabId))) return false;
 
   if (p.selector !== undefined && typeof p.selector !== "string") {
     return false;
@@ -124,6 +132,7 @@ export async function browserRead(
       id: crypto.randomUUID(),
       action: "read",
       params: {
+        tabId: params.tabId,
         selector,
         maxLength,
       } satisfies ReadParams,
@@ -188,7 +197,7 @@ export async function browserRead(
 export const browserReadTool = {
   name: "browser_read",
   description:
-    "Read visible text content from the current browser tab. Extracts structured text — headings, paragraphs, list items, links, buttons, inputs, and images (alt text) — while excluding hidden elements, scripts, and styles. Use an optional CSS selector to scope the read to a specific part of the page.",
+    "Read visible text content from the browser tab. Optionally target a specific tab via tabId; when omitted, defaults to the active tab. Extracts structured text — headings, paragraphs, list items, links, buttons, inputs, and images (alt text) — while excluding hidden elements, scripts, and styles. Use an optional CSS selector to scope the read to a specific part of the page.",
   schema: BROWSER_READ_SCHEMA,
   execute: browserRead,
 } as const;

@@ -10,10 +10,21 @@ import { describe, test, expect } from "bun:test";
 import type {
   Action,
   ActionParams,
+  CloseTabParams,
+  CreateTabParams,
   ErrorCode,
   ErrorResponse,
+  ListTabsParams,
+  NavigateParams,
+  ReadParams,
   Request,
   Response,
+  ScreenshotParams,
+  TypeParams,
+  ExecParams,
+  WaitForElementParams,
+  WaitForTextParams,
+  ClickParams,
 } from "@pi-browser-bridge/protocol";
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -21,7 +32,7 @@ import type {
 // ═══════════════════════════════════════════════════════════════════════════
 
 describe("Action type", () => {
-  test("membership — all eight actions are recognised", () => {
+  test("membership — all eleven actions are recognised", () => {
     const actions: Action[] = [
       "navigate",
       "click",
@@ -31,8 +42,11 @@ describe("Action type", () => {
       "exec",
       "waitForElement",
       "waitForText",
+      "createTab",
+      "listTabs",
+      "closeTab",
     ];
-    expect(actions).toHaveLength(8);
+    expect(actions).toHaveLength(11);
   });
 
   test("each action is a non-empty string literal", () => {
@@ -45,6 +59,9 @@ describe("Action type", () => {
       "exec",
       "waitForElement",
       "waitForText",
+      "createTab",
+      "listTabs",
+      "closeTab",
     ];
     for (const a of actions) {
       expect(typeof a).toBe("string");
@@ -62,6 +79,9 @@ describe("Action type", () => {
       "exec",
       "waitForElement",
       "waitForText",
+      "createTab",
+      "listTabs",
+      "closeTab",
     ];
     const unique = new Set(actions);
     expect(unique.size).toBe(actions.length);
@@ -73,7 +93,7 @@ describe("Action type", () => {
 // ═══════════════════════════════════════════════════════════════════════════
 
 describe("ErrorCode type", () => {
-  test("membership — all eight error codes are recognised", () => {
+  test("membership — all eleven error codes are recognised", () => {
     const codes: ErrorCode[] = [
       "TIMEOUT",
       "ELEMENT_NOT_FOUND",
@@ -81,11 +101,26 @@ describe("ErrorCode type", () => {
       "ELEMENT_NOT_TYPABLE",
       "INVALID_URL",
       "RESTRICTED_URL",
+      "RESTRICTED_DOMAIN",
       "BROWSER_NOT_CONNECTED",
       "CONNECTION_RESET",
       "UNKNOWN_ACTION",
+      "TAB_NOT_FOUND",
     ];
-    expect(codes).toHaveLength(9);
+    expect(codes).toHaveLength(11);
+  });
+
+  test("TAB_NOT_FOUND is a valid ErrorCode", () => {
+    const code: ErrorCode = "TAB_NOT_FOUND";
+    expect(code).toBe("TAB_NOT_FOUND");
+    expect(typeof code).toBe("string");
+    expect(code.length).toBeGreaterThan(0);
+  });
+
+  test("RESTRICTED_DOMAIN is a valid ErrorCode", () => {
+    const code: ErrorCode = "RESTRICTED_DOMAIN";
+    expect(code).toBe("RESTRICTED_DOMAIN");
+    expect(typeof code).toBe("string");
   });
 
   test("each code is a non-empty string", () => {
@@ -96,9 +131,11 @@ describe("ErrorCode type", () => {
       "ELEMENT_NOT_TYPABLE",
       "INVALID_URL",
       "RESTRICTED_URL",
+      "RESTRICTED_DOMAIN",
       "BROWSER_NOT_CONNECTED",
       "CONNECTION_RESET",
       "UNKNOWN_ACTION",
+      "TAB_NOT_FOUND",
     ];
     for (const c of codes) {
       expect(typeof c).toBe("string");
@@ -114,9 +151,11 @@ describe("ErrorCode type", () => {
       "ELEMENT_NOT_TYPABLE",
       "INVALID_URL",
       "RESTRICTED_URL",
+      "RESTRICTED_DOMAIN",
       "BROWSER_NOT_CONNECTED",
       "CONNECTION_RESET",
       "UNKNOWN_ACTION",
+      "TAB_NOT_FOUND",
     ];
     expect(new Set(codes).size).toBe(codes.length);
   });
@@ -155,9 +194,11 @@ describe("ErrorResponse", () => {
       "ELEMENT_NOT_TYPABLE",
       "INVALID_URL",
       "RESTRICTED_URL",
+      "RESTRICTED_DOMAIN",
       "BROWSER_NOT_CONNECTED",
       "CONNECTION_RESET",
       "UNKNOWN_ACTION",
+      "TAB_NOT_FOUND",
     ];
     for (const code of codes) {
       const err: ErrorResponse = { code, message: `Test: ${code}` };
@@ -355,8 +396,10 @@ describe("Response", () => {
       "ELEMENT_NOT_TYPABLE",
       "INVALID_URL",
       "RESTRICTED_URL",
+      "RESTRICTED_DOMAIN",
       "BROWSER_NOT_CONNECTED",
       "UNKNOWN_ACTION",
+      "TAB_NOT_FOUND",
     ];
     for (const code of codes) {
       const res: Response = {
@@ -451,6 +494,9 @@ describe("ActionParams mapped type", () => {
       "exec",
       "waitForElement",
       "waitForText",
+      "createTab",
+      "listTabs",
+      "closeTab",
     ];
 
     // For each action, the mapped params type should be constructable
@@ -463,11 +509,330 @@ describe("ActionParams mapped type", () => {
       exec: { code: "1 + 1" },
       waitForElement: { selector: ".modal" },
       waitForText: { text: "Welcome" },
+      createTab: {},
+      listTabs: {},
+      closeTab: { tabId: 1 },
     };
 
     for (const action of actions) {
       expect(examples[action]).toBeDefined();
       expect(typeof examples[action]).toBe("object");
     }
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════════════
+// tabId parameter on action params
+// ═══════════════════════════════════════════════════════════════════════════
+
+describe("tabId parameter on action params", () => {
+  test("NavigateParams accepts optional tabId", () => {
+    const withoutTabId: NavigateParams = { url: "https://example.com" };
+    expect(withoutTabId.tabId).toBeUndefined();
+
+    const withTabId: NavigateParams = { url: "https://example.com", tabId: 42 };
+    expect(withTabId.tabId).toBe(42);
+  });
+
+  test("ClickParams accepts optional tabId", () => {
+    const withoutTabId: ClickParams = { selector: "#btn" };
+    expect(withoutTabId.tabId).toBeUndefined();
+
+    const withTabId: ClickParams = { selector: "#btn", tabId: 7 };
+    expect(withTabId.tabId).toBe(7);
+  });
+
+  test("TypeParams accepts optional tabId", () => {
+    const withoutTabId: TypeParams = { selector: "input", text: "hello" };
+    expect(withoutTabId.tabId).toBeUndefined();
+
+    const withTabId: TypeParams = { selector: "input", text: "hello", tabId: 3 };
+    expect(withTabId.tabId).toBe(3);
+  });
+
+  test("ReadParams accepts optional tabId", () => {
+    const withoutTabId: ReadParams = {};
+    expect(withoutTabId.tabId).toBeUndefined();
+
+    const withTabId: ReadParams = { tabId: 15, selector: "main" };
+    expect(withTabId.tabId).toBe(15);
+  });
+
+  test("ScreenshotParams accepts optional tabId", () => {
+    const withoutTabId: ScreenshotParams = {};
+    expect(withoutTabId.tabId).toBeUndefined();
+
+    const withTabId: ScreenshotParams = { tabId: 99, format: "png" };
+    expect(withTabId.tabId).toBe(99);
+  });
+
+  test("ExecParams accepts optional tabId", () => {
+    const withoutTabId: ExecParams = { code: "1" };
+    expect(withoutTabId.tabId).toBeUndefined();
+
+    const withTabId: ExecParams = { code: "1", tabId: 5 };
+    expect(withTabId.tabId).toBe(5);
+  });
+
+  test("WaitForElementParams accepts optional tabId", () => {
+    const withoutTabId: WaitForElementParams = { selector: ".loader" };
+    expect(withoutTabId.tabId).toBeUndefined();
+
+    const withTabId: WaitForElementParams = { selector: ".loader", tabId: 21 };
+    expect(withTabId.tabId).toBe(21);
+  });
+
+  test("WaitForTextParams accepts optional tabId", () => {
+    const withoutTabId: WaitForTextParams = { text: "ready" };
+    expect(withoutTabId.tabId).toBeUndefined();
+
+    const withTabId: WaitForTextParams = { text: "ready", tabId: 8 };
+    expect(withTabId.tabId).toBe(8);
+  });
+
+  test("CloseTabParams requires tabId (mandatory, not optional)", () => {
+    const params: CloseTabParams = { tabId: 42 };
+    expect(params.tabId).toBe(42);
+  });
+
+  test("CreateTabParams has no tabId — tab does not exist yet", () => {
+    const params: CreateTabParams = { url: "https://example.com" };
+    expect("tabId" in params).toBe(false);
+  });
+
+  test("ListTabsParams has no tabId — listing all tabs", () => {
+    const params: ListTabsParams = { currentWindowOnly: true };
+    expect("tabId" in params).toBe(false);
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════════════
+// New action types: createTab, listTabs, closeTab
+// ═══════════════════════════════════════════════════════════════════════════
+
+describe("New action types — createTab, listTabs, closeTab", () => {
+  test("createTab is a valid Action", () => {
+    const action: Action = "createTab";
+    expect(action).toBe("createTab");
+  });
+
+  test("listTabs is a valid Action", () => {
+    const action: Action = "listTabs";
+    expect(action).toBe("listTabs");
+  });
+
+  test("closeTab is a valid Action", () => {
+    const action: Action = "closeTab";
+    expect(action).toBe("closeTab");
+  });
+
+  test("createTab request can be constructed without params", () => {
+    const req: Request<"createTab"> = {
+      id: "tab-new-1",
+      action: "createTab",
+      params: {},
+    };
+    expect(req.action).toBe("createTab");
+    expect(req.params).toEqual({});
+  });
+
+  test("createTab request can include url and active", () => {
+    const req: Request<"createTab"> = {
+      id: "tab-new-2",
+      action: "createTab",
+      params: { url: "https://example.com", active: false },
+    };
+    expect(req.params.url).toBe("https://example.com");
+    expect(req.params.active).toBe(false);
+  });
+
+  test("listTabs request can be constructed with empty params", () => {
+    const req: Request<"listTabs"> = {
+      id: "tab-list-1",
+      action: "listTabs",
+      params: {},
+    };
+    expect(req.action).toBe("listTabs");
+  });
+
+  test("listTabs request can include urlPattern", () => {
+    const req: Request<"listTabs"> = {
+      id: "tab-list-2",
+      action: "listTabs",
+      params: { urlPattern: "github.com", currentWindowOnly: true },
+    };
+    expect(req.params.urlPattern).toBe("github.com");
+    expect(req.params.currentWindowOnly).toBe(true);
+  });
+
+  test("closeTab request requires tabId", () => {
+    const req: Request<"closeTab"> = {
+      id: "tab-close-1",
+      action: "closeTab",
+      params: { tabId: 42 },
+    };
+    expect(req.action).toBe("closeTab");
+    expect(req.params.tabId).toBe(42);
+  });
+
+  test("closeTab response carries tabId in result", () => {
+    const res: Response<"closeTab"> = {
+      id: "tab-close-1",
+      result: { tabId: 42, closed: true },
+    };
+    expect(res.result).toBeDefined();
+  });
+
+  test("createTab response carries new tab descriptor", () => {
+    const res: Response<"createTab"> = {
+      id: "tab-new-1",
+      result: { tabId: 99, url: "https://example.com", title: "Example" },
+    };
+    expect(res.result).toBeDefined();
+  });
+
+  test("listTabs response carries array of tab descriptors", () => {
+    const res: Response<"listTabs"> = {
+      id: "tab-list-1",
+      result: [
+        { tabId: 1, url: "https://a.com", title: "A", active: true },
+        { tabId: 2, url: "https://b.com", title: "B", active: false },
+      ],
+    };
+    expect(res.result).toBeDefined();
+    expect(Array.isArray(res.result)).toBe(true);
+  });
+
+  test("all new actions are constructable as generic Request", () => {
+    const createTabReq: Request = {
+      id: "g1", action: "createTab", params: {},
+    };
+    const listTabsReq: Request = {
+      id: "g2", action: "listTabs", params: {},
+    };
+    const closeTabReq: Request = {
+      id: "g3", action: "closeTab", params: { tabId: 1 },
+    };
+    expect(createTabReq.action).toBe("createTab");
+    expect(listTabsReq.action).toBe("listTabs");
+    expect(closeTabReq.action).toBe("closeTab");
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════════════
+// TAB_NOT_FOUND error response shapes
+// ═══════════════════════════════════════════════════════════════════════════
+
+describe("TAB_NOT_FOUND error response shapes", () => {
+  test("minimal TAB_NOT_FOUND error — code and message only", () => {
+    const err: ErrorResponse = {
+      code: "TAB_NOT_FOUND",
+      message: "Tab 42 was not found",
+    };
+    expect(err.code).toBe("TAB_NOT_FOUND");
+    expect(err.message).toBe("Tab 42 was not found");
+    expect(err.suggestion).toBeUndefined();
+  });
+
+  test("TAB_NOT_FOUND error with suggestion", () => {
+    const err: ErrorResponse = {
+      code: "TAB_NOT_FOUND",
+      message: "Tab 42 does not correspond to any open tab",
+      suggestion: "The tab may have been closed. List tabs to find a valid TabId.",
+    };
+    expect(err.code).toBe("TAB_NOT_FOUND");
+    expect(err.suggestion).toContain("List tabs");
+  });
+
+  test("TAB_NOT_FOUND can be carried in a Response", () => {
+    const res: Response = {
+      id: "nav-42",
+      error: {
+        code: "TAB_NOT_FOUND",
+        message: "Tab 42 was closed before the request completed",
+        suggestion: "Create a new tab and navigate again.",
+      },
+    };
+    expect(res.id).toBe("nav-42");
+    expect(res.error!.code).toBe("TAB_NOT_FOUND");
+    expect(res.error!.message).toContain("closed");
+    expect(res.error!.suggestion).toContain("Create a new tab");
+    expect(res.result).toBeUndefined();
+  });
+
+  test("TAB_NOT_FOUND error for click action on closed tab", () => {
+    const res: Response<"click"> = {
+      id: "clk-1",
+      error: {
+        code: "TAB_NOT_FOUND",
+        message: "Cannot click: tab 7 no longer exists",
+      },
+    };
+    expect(res.error!.code).toBe("TAB_NOT_FOUND");
+    expect(res.result).toBeUndefined();
+  });
+
+  test("TAB_NOT_FOUND error for type action on closed tab", () => {
+    const res: Response<"type"> = {
+      id: "typ-1",
+      error: {
+        code: "TAB_NOT_FOUND",
+        message: "Cannot type: tab 3 was closed",
+        suggestion: "Use listTabs to find a valid tab, or createTab to open a new one.",
+      },
+    };
+    expect(res.error!.code).toBe("TAB_NOT_FOUND");
+    expect(res.error!.suggestion).toContain("listTabs");
+  });
+
+  test("TAB_NOT_FOUND error for read action on closed tab", () => {
+    const res: Response<"read"> = {
+      id: "rd-1",
+      error: {
+        code: "TAB_NOT_FOUND",
+        message: "Cannot read: tab 5 was closed",
+      },
+    };
+    expect(res.error!.code).toBe("TAB_NOT_FOUND");
+  });
+
+  test("TAB_NOT_FOUND error for closeTab on already-closed tab", () => {
+    const res: Response<"closeTab"> = {
+      id: "close-1",
+      error: {
+        code: "TAB_NOT_FOUND",
+        message: "Tab 99 does not exist",
+        suggestion: "The tab may have been closed by another action. List tabs to find valid tabIds.",
+      },
+    };
+    expect(res.error!.code).toBe("TAB_NOT_FOUND");
+    expect(res.result).toBeUndefined();
+  });
+
+  test("TAB_NOT_FOUND error is distinguishable from BROWSER_NOT_CONNECTED", () => {
+    const tabNotFound: ErrorResponse = {
+      code: "TAB_NOT_FOUND",
+      message: "Tab 42 not found",
+    };
+    const browserNotConnected: ErrorResponse = {
+      code: "BROWSER_NOT_CONNECTED",
+      message: "No Chrome extension is connected",
+    };
+    expect(tabNotFound.code).not.toBe(browserNotConnected.code);
+    expect(tabNotFound.code).toBe("TAB_NOT_FOUND");
+    expect(browserNotConnected.code).toBe("BROWSER_NOT_CONNECTED");
+  });
+
+  test("TAB_NOT_FOUND error shape matches ErrorResponse interface exactly", () => {
+    const err: ErrorResponse = {
+      code: "TAB_NOT_FOUND",
+      message: "Tab was closed",
+      suggestion: "Re-open the tab",
+    };
+    // Verify every field is typed correctly
+    expect(typeof err.code).toBe("string");
+    expect(typeof err.message).toBe("string");
+    expect(typeof err.suggestion).toBe("string");
+    expect(err.code).toMatch(/^[A-Z_]+$/);
   });
 });

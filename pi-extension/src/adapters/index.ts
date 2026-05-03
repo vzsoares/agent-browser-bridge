@@ -15,59 +15,76 @@
  * @module adapters
  */
 
-// ── Navigate ──────────────────────────────────────────────────────────────
-export { browserNavigateTool, NavigateSchema } from "./browser-navigate.js";
-export type { NavigateParams } from "./browser-navigate.js";
-
+export type { ClickParams } from "./browser-click.js";
 // ── Click ─────────────────────────────────────────────────────────────────
 export { browserClickTool, ClickSchema } from "./browser-click.js";
-export type { ClickParams } from "./browser-click.js";
-
-// ── Type ─────────────────────────────────────────────────────────────────
-export { browserTypeTool, TypeSchema } from "./browser-type.js";
-export type { TypeParams } from "./browser-type.js";
-
-// ── Read ──────────────────────────────────────────────────────────────────
-export { browserReadTool, ReadSchema } from "./browser-read.js";
-export type { ReadParams } from "./browser-read.js";
-
-// ── Screenshot ────────────────────────────────────────────────────────────
-export { browserScreenshotTool, ScreenshotSchema } from "./browser-screenshot.js";
-export type { ScreenshotParams } from "./browser-screenshot.js";
-
+export type { ExecParams } from "./browser-exec.js";
 // ── Exec ──────────────────────────────────────────────────────────────────
 export { browserExecTool, ExecSchema } from "./browser-exec.js";
-export type { ExecParams } from "./browser-exec.js";
-
-// ── Wait For Element ──────────────────────────────────────────────────────
-export { browserWaitForElementTool, WaitForElementSchema } from "./browser-wait-for-element.js";
+export type { NavigateParams } from "./browser-navigate.js";
+// ── Navigate ──────────────────────────────────────────────────────────────
+export { browserNavigateTool, NavigateSchema } from "./browser-navigate.js";
+export type { ReadParams } from "./browser-read.js";
+// ── Read ──────────────────────────────────────────────────────────────────
+export { browserReadTool, ReadSchema } from "./browser-read.js";
+export type { ScreenshotParams } from "./browser-screenshot.js";
+// ── Screenshot ────────────────────────────────────────────────────────────
+export {
+	browserScreenshotTool,
+	ScreenshotSchema,
+} from "./browser-screenshot.js";
+// ── Create Tab ────────────────────────────────────────────────────────────
+export { browserCreateTabTool, CreateTabSchema } from "./browser-create-tab.js";
+export type { CreateTabParams } from "./browser-create-tab.js";
+// ── List Tabs ─────────────────────────────────────────────────────────────
+export { browserListTabsTool, ListTabsSchema } from "./browser-list-tabs.js";
+export type { ListTabsParams } from "./browser-list-tabs.js";
+// ── Close Tab ─────────────────────────────────────────────────────────────
+export { browserCloseTabTool, CloseTabSchema } from "./browser-close-tab.js";
+export type { CloseTabParams } from "./browser-close-tab.js";
+export type { TypeParams } from "./browser-type.js";
+// ── Type ─────────────────────────────────────────────────────────────────
+export { browserTypeTool, TypeSchema } from "./browser-type.js";
 export type { WaitForElementParams } from "./browser-wait-for-element.js";
-
-// ── Wait For Text ─────────────────────────────────────────────────────────
-export { browserWaitForTextTool, WaitForTextSchema } from "./browser-wait-for-text.js";
+// ── Wait For Element ──────────────────────────────────────────────────────
+export {
+	browserWaitForElementTool,
+	WaitForElementSchema,
+} from "./browser-wait-for-element.js";
 export type { WaitForTextParams } from "./browser-wait-for-text.js";
+// ── Wait For Text ─────────────────────────────────────────────────────────
+export {
+	browserWaitForTextTool,
+	WaitForTextSchema,
+} from "./browser-wait-for-text.js";
 
 // ── Tool collection ───────────────────────────────────────────────────────
 
-import { browserNavigateTool } from "./browser-navigate.js";
 import { browserClickTool } from "./browser-click.js";
-import { browserTypeTool } from "./browser-type.js";
+import { browserExecTool } from "./browser-exec.js";
+import { browserNavigateTool } from "./browser-navigate.js";
 import { browserReadTool } from "./browser-read.js";
 import { browserScreenshotTool } from "./browser-screenshot.js";
-import { browserExecTool } from "./browser-exec.js";
+import { browserCreateTabTool } from "./browser-create-tab.js";
+import { browserListTabsTool } from "./browser-list-tabs.js";
+import { browserCloseTabTool } from "./browser-close-tab.js";
+import { browserTypeTool } from "./browser-type.js";
 import { browserWaitForElementTool } from "./browser-wait-for-element.js";
 import { browserWaitForTextTool } from "./browser-wait-for-text.js";
 
-/** All pi ToolDefinition objects for the 8 core browser-automation tools. */
+/** All pi ToolDefinition objects for the 11 core browser-automation tools. */
 export const tools = [
-  browserNavigateTool,
-  browserClickTool,
-  browserTypeTool,
-  browserReadTool,
-  browserScreenshotTool,
-  browserExecTool,
-  browserWaitForElementTool,
-  browserWaitForTextTool,
+	browserNavigateTool,
+	browserClickTool,
+	browserTypeTool,
+	browserReadTool,
+	browserScreenshotTool,
+	browserExecTool,
+	browserWaitForElementTool,
+	browserWaitForTextTool,
+	browserCreateTabTool,
+	browserListTabsTool,
+	browserCloseTabTool,
 ] as const;
 
 // ── Lifecycle registration helper ─────────────────────────────────────────
@@ -85,30 +102,33 @@ import { start, stop } from "../infrastructure/ws-server.js";
  * @param pi — The pi ExtensionAPI instance.
  */
 export function registerAllTools(pi: ExtensionAPI): void {
-  pi.registerTool(browserNavigateTool);
-  pi.registerTool(browserClickTool);
-  pi.registerTool(browserTypeTool);
-  pi.registerTool(browserReadTool);
-  pi.registerTool(browserScreenshotTool);
-  pi.registerTool(browserExecTool);
-  pi.registerTool(browserWaitForElementTool);
-  pi.registerTool(browserWaitForTextTool);
+	pi.registerTool(browserNavigateTool);
+	pi.registerTool(browserClickTool);
+	pi.registerTool(browserTypeTool);
+	pi.registerTool(browserReadTool);
+	pi.registerTool(browserScreenshotTool);
+	pi.registerTool(browserExecTool);
+	pi.registerTool(browserWaitForElementTool);
+	pi.registerTool(browserWaitForTextTool);
+	pi.registerTool(browserCreateTabTool);
+	pi.registerTool(browserListTabsTool);
+	pi.registerTool(browserCloseTabTool);
 
-  pi.on("session_start", async () => {
-    await start();
-  });
+	pi.on("session_start", async () => {
+		await start();
+	});
 
-  pi.on("session_shutdown", async () => {
-    await stop();
-  });
+	pi.on("session_shutdown", async () => {
+		await stop();
+	});
 }
 
 /**
  * Default export for auto-loading by pi.
  *
- * Registers all 6 core browser tools and manages the WebSocket server
+ * Registers all 11 core browser tools and manages the WebSocket server
  * lifecycle (start on session_start, stop on session_shutdown).
  */
 export default function (pi: ExtensionAPI): void {
-  registerAllTools(pi);
+	registerAllTools(pi);
 }

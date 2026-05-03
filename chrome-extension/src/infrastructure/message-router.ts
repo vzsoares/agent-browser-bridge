@@ -90,6 +90,8 @@ function parseRequest(raw: string): Request | Response {
 		"exec",
 		"waitForElement",
 		"waitForText",
+		"listTabs",
+		"closeTab",
 	];
 	if (!(validActions as string[]).includes(obj.action)) {
 		return {
@@ -136,6 +138,10 @@ export interface MessageRouterOptions {
 	handleNavigate: (id: string, params: unknown) => Promise<Response>;
 	/** Service-worker-level screenshot handler (needs chrome.tabs.captureVisibleTab). */
 	handleScreenshot: (id: string, params: unknown) => Promise<Response>;
+	/** Service-worker-level listTabs handler (needs chrome.tabs.query). */
+	handleListTabs: (id: string, params: unknown) => Promise<Response>;
+	/** Service-worker-level closeTab handler (needs chrome.tabs.remove). */
+	handleCloseTab: (id: string, params: unknown) => Promise<Response>;
 }
 
 /**
@@ -154,6 +160,8 @@ export function createMessageRouter(
 		activeTabId,
 		handleNavigate,
 		handleScreenshot,
+		handleListTabs,
+		handleCloseTab,
 	} = options;
 
 	async function handleIncomingMessage(raw: string): Promise<void> {
@@ -202,6 +210,20 @@ export function createMessageRouter(
 		// ── Screenshot: handle directly (no content script needed) ──────────
 		if (request.action === "screenshot") {
 			const resp = await handleScreenshot(request.id, request.params);
+			sendResponse(resp);
+			return;
+		}
+
+		// ── ListTabs: handle directly (chrome.tabs API, no content script) ──
+		if (request.action === "listTabs") {
+			const resp = await handleListTabs(request.id, request.params);
+			sendResponse(resp);
+			return;
+		}
+
+		// ── CloseTab: handle directly (chrome.tabs API, no content script) ──
+		if (request.action === "closeTab") {
+			const resp = await handleCloseTab(request.id, request.params);
 			sendResponse(resp);
 			return;
 		}

@@ -15,24 +15,27 @@
  * @module adapters/browser-wait-for-text
  */
 
-import { defineTool, type AgentToolResult } from "@mariozechner/pi-coding-agent";
-import { Type, type Static } from "typebox";
-import { createBridgeTransport } from "../infrastructure/ws-transport.js";
-import { executeWaitForTextUseCase } from "../application/wait-for-text-usecase.js";
-import type { WaitForTextResult } from "../application/types.js";
-import type { ValidatedWaitForTextParams } from "../domain/schemas.js";
-import type { BridgeTransport } from "../domain/ports.js";
+import {
+	type AgentToolResult,
+	defineTool,
+} from "@mariozechner/pi-coding-agent";
 import type { ErrorResponse } from "@pi-browser-bridge/protocol";
+import { type Static, Type } from "typebox";
+import type { WaitForTextResult } from "../application/types.js";
+import { executeWaitForTextUseCase } from "../application/wait-for-text-usecase.js";
+import type { ValidatedWaitForTextParams } from "../domain/schemas.js";
+import { createBridgeTransport } from "../infrastructure/ws-transport.js";
 
 // ── TypeBox Schema ────────────────────────────────────────────────────────
 
 export const WaitForTextSchema = Type.Object(
-  {
-    text: Type.String(),
-    scope: Type.Optional(Type.String()),
-    timeout: Type.Optional(Type.Integer({ minimum: 0 })),
-  },
-  { default: { timeout: 10000 } },
+	{
+		tabId: Type.Optional(Type.Integer()),
+		text: Type.String(),
+		scope: Type.Optional(Type.String()),
+		timeout: Type.Optional(Type.Integer({ minimum: 0 })),
+	},
+	{ default: { timeout: 10000 } },
 );
 
 export type WaitForTextParams = Static<typeof WaitForTextSchema>;
@@ -40,79 +43,88 @@ export type WaitForTextParams = Static<typeof WaitForTextSchema>;
 // ── Helpers ───────────────────────────────────────────────────────────────
 
 function textBlock(text: string) {
-  return { type: "text" as const, text };
+	return { type: "text" as const, text };
 }
 
-function formatError(err: ErrorResponse, text?: string, scope?: string, timeout?: number): string {
-  const scopeLabel = scope ? ` within "${scope}"` : "";
-  const lines = [`Wait failed: ${err.message}`];
-  if (err.code === "TIMEOUT" && text !== undefined) {
-    lines.push(
-      `Text "${text}" did not appear${scopeLabel} within ${timeout ?? 10000}ms.`,
-    );
-  }
-  if (err.code === "BROWSER_NOT_CONNECTED") {
-    lines.push(
-      "No browser extension is connected. Make sure the Pi Browser Bridge extension is installed and active.",
-    );
-  }
-  if (err.suggestion) lines.push(err.suggestion);
-  return lines.join("\n");
+function formatError(
+	err: ErrorResponse,
+	text?: string,
+	scope?: string,
+	timeout?: number,
+): string {
+	const scopeLabel = scope ? ` within "${scope}"` : "";
+	const lines = [`Wait failed: ${err.message}`];
+	if (err.code === "TIMEOUT" && text !== undefined) {
+		lines.push(
+			`Text "${text}" did not appear${scopeLabel} within ${timeout ?? 10000}ms.`,
+		);
+	}
+	if (err.code === "BROWSER_NOT_CONNECTED") {
+		lines.push(
+			"No browser extension is connected. Make sure the Pi Browser Bridge extension is installed and active.",
+		);
+	}
+	if (err.suggestion) lines.push(err.suggestion);
+	return lines.join("\n");
 }
 
 // ── Execute ───────────────────────────────────────────────────────────────
 
 async function execute(
-  _toolCallId: string,
-  params: WaitForTextParams,
-  _signal: AbortSignal | undefined,
-  _onUpdate: unknown,
-  _ctx: unknown,
+	_toolCallId: string,
+	params: WaitForTextParams,
+	_signal: AbortSignal | undefined,
+	_onUpdate: unknown,
+	_ctx: unknown,
 ): Promise<AgentToolResult<undefined>> {
-  const transport = createBridgeTransport();
-  const result = await executeWaitForTextUseCase(
-    transport,
-    params as unknown as ValidatedWaitForTextParams,
-  );
+	const transport = createBridgeTransport();
+	const result = await executeWaitForTextUseCase(
+		transport,
+		params as unknown as ValidatedWaitForTextParams,
+	);
 
-  if (!result.success) {
-    return {
-      content: [textBlock(formatError(result.error, params.text, params.scope, params.timeout))],
-      details: undefined,
-    };
-  }
+	if (!result.success) {
+		return {
+			content: [
+				textBlock(
+					formatError(result.error, params.text, params.scope, params.timeout),
+				),
+			],
+			details: undefined,
+		};
+	}
 
-  const scopeLabel = params.scope ? ` within "${params.scope}"` : "";
+	const scopeLabel = params.scope ? ` within "${params.scope}"` : "";
 
-  const data = result.data as WaitForTextResult;
-  if (!data.found) {
-    return {
-      content: [
-        textBlock(
-          `Text "${params.text}" not found${scopeLabel} within ${data.elapsedMs}ms.`,
-        ),
-      ],
-      details: undefined,
-    };
-  }
+	const data = result.data as WaitForTextResult;
+	if (!data.found) {
+		return {
+			content: [
+				textBlock(
+					`Text "${params.text}" not found${scopeLabel} within ${data.elapsedMs}ms.`,
+				),
+			],
+			details: undefined,
+		};
+	}
 
-  return {
-    content: [
-      textBlock(
-        `Text "${data.text}" found${scopeLabel} in ${data.elapsedMs}ms.`,
-      ),
-    ],
-    details: undefined,
-  };
+	return {
+		content: [
+			textBlock(
+				`Text "${data.text}" found${scopeLabel} in ${data.elapsedMs}ms.`,
+			),
+		],
+		details: undefined,
+	};
 }
 
 // ── Tool Definition ───────────────────────────────────────────────────────
 
 export const browserWaitForTextTool = defineTool({
-  name: "browser_wait_for_text",
-  label: "Browser Wait For Text",
-  description:
-    "Wait for specific text content to appear on the page. Optionally scope to a CSS selector. Returns timing info when found, or TIMEOUT error.",
-  parameters: WaitForTextSchema,
-  execute,
+	name: "browser_wait_for_text",
+	label: "Browser Wait For Text",
+	description:
+		"Wait for specific text content to appear on the page. Optionally target a specific tab via tabId; when omitted, defaults to the active tab. Optionally scope to a CSS selector. Returns timing info when found, or TIMEOUT error.",
+	parameters: WaitForTextSchema,
+	execute,
 });

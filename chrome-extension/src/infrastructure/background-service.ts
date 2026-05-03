@@ -34,11 +34,14 @@ import {
 } from "./chrome-storage.js";
 import {
 	captureVisibleTab,
+	closeTab,
+	createTab,
 	ensureContentScript,
 	executeScriptInTab,
 	getActiveTabId,
 	getTab,
 	isRestrictedUrl,
+	listTabs,
 	removeInjected,
 	updateTab,
 	waitForTabComplete,
@@ -54,13 +57,15 @@ import { WebSocketClient } from "./websocket-client.js";
  * Content scripts are destroyed on cross-page navigation, so the service
  * worker orchestrates the full lifecycle:
  * 1. Validate the target URL
- * 2. Call `chrome.tabs.update` to navigate the active tab
+ * 2. If tabId is provided, navigate that tab in-place via `chrome.tabs.update`.
+ *    If tabId is NOT provided, create a new tab (inactive) and navigate there.
  * 3. Wait for the tab to finish loading (via `chrome.tabs.onUpdated`)
  * 4. Use `chrome.scripting.executeScript` to read the final URL and title
  */
 async function serviceHandleNavigate(
 	id: string,
 	params: unknown,
+	tabId: number | undefined,
 	activeTabId: { current: number | null },
 ): Promise<Response> {
 	const p = params as Record<string, unknown> | null | undefined;
@@ -109,21 +114,42 @@ async function serviceHandleNavigate(
 			? p.timeout
 			: 30000;
 
-	const tabId = activeTabId.current ?? (await getActiveTabId());
-	if (tabId === null) {
-		return {
-			id,
-			error: {
-				code: "BROWSER_NOT_CONNECTED",
-				message: "No active tab available for navigation.",
-				suggestion: "Open a browser tab and make it active.",
-			},
-		};
+	// Determine which tab to navigate.
+	let targetTabId: number;
+
+	if (tabId !== undefined) {
+		// Tab ID was provided — validate it exists.
+		const existing = await getTab(tabId);
+		if (!existing) {
+			return {
+				id,
+				error: {
+					code: "TAB_NOT_FOUND",
+					message: `Tab ${tabId} does not exist or has been closed.`,
+					suggestion: "Use listTabs to find a valid tabId.",
+				},
+			};
+		}
+		targetTabId = tabId;
+	} else {
+		// No tabId provided — create a new inactive tab.
+		const newTab = await createTab(undefined, false);
+		if (!newTab.id) {
+			return {
+				id,
+				error: {
+					code: "BROWSER_NOT_CONNECTED",
+					message: "Failed to create a new tab.",
+					suggestion: "Ensure the browser is running and responsive.",
+				},
+			};
+		}
+		targetTabId = newTab.id;
 	}
 
 	// Detect same-page (hash-only) navigation — delegate to content script.
 	try {
-		const tab = await getTab(tabId);
+		const tab = await getTab(targetTabId);
 		if (tab?.url) {
 			const currentUrl = new URL(tab.url);
 			const isSamePage =
@@ -133,8 +159,8 @@ async function serviceHandleNavigate(
 
 			if (isSamePage) {
 				try {
-					await ensureContentScript(tabId);
-					const response = await chrome.tabs.sendMessage(tabId, {
+					await ensureContentScript(targetTabId);
+					const response = await chrome.tabs.sendMessage(targetTabId, {
 						id,
 						action: "navigate",
 						params: { url, waitUntil, timeout: timeoutMs },
@@ -153,11 +179,11 @@ async function serviceHandleNavigate(
 
 	// Full cross-page navigation.
 	try {
-		await updateTab(tabId, parsedUrl.href);
-		await waitForTabComplete(tabId, timeoutMs);
+		await updateTab(targetTabId, parsedUrl.href);
+		await waitForTabComplete(targetTabId, timeoutMs);
 		await sleep(100);
 
-		const results = await executeScriptInTab(tabId, () => ({
+		const results = await executeScriptInTab(targetTabId, () => ({
 			url: window.location.href,
 			title: document.title,
 		}));
@@ -168,7 +194,10 @@ async function serviceHandleNavigate(
 
 		return {
 			id,
-			result: pageInfo ?? { url: parsedUrl.href, title: "" },
+			result: {
+				...(pageInfo ?? { url: parsedUrl.href, title: "" }),
+				tabId: targetTabId,
+			},
 		};
 	} catch (e) {
 		const err = e instanceof Error ? e.message : String(e);
@@ -209,6 +238,104 @@ async function serviceHandleNavigate(
 			error: {
 				code: "UNKNOWN_ACTION",
 				message: `Navigation failed: ${err}`,
+			},
+		};
+	}
+}
+
+// ── List tabs handler (service-worker level) ────────────────────────
+
+/**
+ * Handle the `listTabs` action directly in the service worker.
+ *
+ * Content scripts cannot access `chrome.tabs.query`, so this must run
+ * in the extension context.
+ */
+async function serviceHandleListTabs(
+	id: string,
+	params: unknown,
+): Promise<Response> {
+	const p = params as Record<string, unknown> | null | undefined;
+
+	const urlPattern =
+		p?.urlPattern !== undefined
+			? typeof p.urlPattern === "string"
+				? p.urlPattern
+				: undefined
+			: undefined;
+
+	const currentWindowOnly =
+		p?.currentWindowOnly !== undefined
+			? typeof p.currentWindowOnly === "boolean"
+				? p.currentWindowOnly
+				: true
+			: true;
+
+	try {
+		const tabs = await listTabs(urlPattern, currentWindowOnly);
+		return { id, result: { tabs } };
+	} catch (e) {
+		const err = e instanceof Error ? e.message : String(e);
+		return {
+			id,
+			error: {
+				code: "UNKNOWN_ACTION",
+				message: `Failed to list tabs: ${err}`,
+			},
+		};
+	}
+}
+
+// ── Close tab handler (service-worker level) ────────────────────────
+
+/**
+ * Handle the `closeTab` action directly in the service worker.
+ *
+ * Content scripts cannot access `chrome.tabs.remove`, so this must run
+ * in the extension context.
+ */
+async function serviceHandleCloseTab(
+	id: string,
+	params: unknown,
+): Promise<Response> {
+	const p = params as Record<string, unknown> | null | undefined;
+	const tabId = p?.tabId;
+
+	if (typeof tabId !== "number" || !Number.isInteger(tabId)) {
+		return {
+			id,
+			error: {
+				code: "TAB_NOT_FOUND",
+				message:
+					"'tabId' is required and must be a valid integer.",
+				suggestion: "Use listTabs to find a valid tabId.",
+			},
+		};
+	}
+
+	// Check if the tab exists before attempting to close it.
+	const existing = await getTab(tabId);
+	if (!existing) {
+		return {
+			id,
+			error: {
+				code: "TAB_NOT_FOUND",
+				message: `Tab ${tabId} does not exist or has been closed.`,
+				suggestion: "Use listTabs to find a valid tabId.",
+			},
+		};
+	}
+
+	try {
+		await closeTab(tabId);
+		return { id, result: { closed: true } };
+	} catch (e) {
+		const err = e instanceof Error ? e.message : String(e);
+		return {
+			id,
+			error: {
+				code: "UNKNOWN_ACTION",
+				message: `Failed to close tab: ${err}`,
 			},
 		};
 	}
@@ -269,17 +396,36 @@ export async function init(logger: Logger): Promise<{
 		wsClient,
 		enabled: enabledRef,
 		activeTabId,
-		handleNavigate: (id, p) => serviceHandleNavigate(id, p, activeTabId),
-		handleScreenshot: (id, p) =>
-			handleScreenshot(id, p, {
+		handleNavigate: (id, p) => {
+			const pTyped = p as Record<string, unknown> | null | undefined;
+			const reqTabId =
+				typeof pTyped?.tabId === "number" ? pTyped.tabId : undefined;
+			return serviceHandleNavigate(id, p, reqTabId, activeTabId);
+		},
+		handleScreenshot: async (id, p) => {
+			const tabId =
+				activeTabId.current ?? (await getActiveTabId());
+			if (tabId === null) {
+				return {
+					id,
+					error: {
+						code: "BROWSER_NOT_CONNECTED" as const,
+						message: "No active tab available for screenshot.",
+						suggestion: "Ensure a tab is open and active in the browser window.",
+					},
+				};
+			}
+			return handleScreenshot(id, p, {
 				captureVisibleTab,
 				getActiveTabUrl: async () => {
-					const tabId = activeTabId.current ?? (await getActiveTabId());
-					if (tabId === null) return null;
 					const tab = await getTab(tabId);
 					return tab?.url ?? null;
 				},
-			}),
+				activeTabId: tabId,
+			});
+		},
+		handleListTabs: (id, p) => serviceHandleListTabs(id, p),
+		handleCloseTab: (id, p) => serviceHandleCloseTab(id, p),
 	});
 
 	// ── Tab lifecycle listeners ─────────────────────────────────────

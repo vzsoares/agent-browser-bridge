@@ -368,6 +368,7 @@ describe("handleScreenshot", () => {
   const fakeDeps = {
     captureVisibleTab: vi.fn(),
     getActiveTabUrl: vi.fn(),
+    activeTabId: 1,
   };
 
   beforeEach(() => {
@@ -422,6 +423,7 @@ describe("handleScreenshot", () => {
       fakeDeps,
     );
     expect(result.result).toBeDefined();
+    expect(result.result?.tabId).toBe(1);
     expect(result.result?.data).toBe("abc123");
     expect(result.result?.format).toBe("png");
     expect(fakeDeps.captureVisibleTab).toHaveBeenCalledWith("png", undefined);
@@ -439,6 +441,7 @@ describe("handleScreenshot", () => {
       fakeDeps,
     );
     expect(result.result).toBeDefined();
+    expect(result.result?.tabId).toBe(1);
     expect(result.result?.format).toBe("jpeg");
     expect(fakeDeps.captureVisibleTab).toHaveBeenCalledWith("jpeg", 50);
   });
@@ -500,6 +503,7 @@ describe("handleScreenshot", () => {
       fakeDeps,
     );
     expect(result.result).toBeDefined();
+    expect(result.result?.tabId).toBe(1);
     expect(result.result?.warning).toBeDefined();
     expect(result.result?.warning).toContain("viewport-only");
   });
@@ -516,6 +520,7 @@ describe("handleScreenshot", () => {
       fakeDeps,
     );
     expect(result.result).toBeDefined();
+    expect(result.result?.tabId).toBe(1);
     expect(result.result?.warning).toBeUndefined();
   });
 
@@ -527,6 +532,7 @@ describe("handleScreenshot", () => {
 
     const result = await handleScreenshot("req-11", null, fakeDeps);
     expect(result.result).toBeDefined();
+    expect(result.result?.tabId).toBe(1);
     expect(fakeDeps.captureVisibleTab).toHaveBeenCalledWith("png", undefined);
   });
 
@@ -542,6 +548,7 @@ describe("handleScreenshot", () => {
       fakeDeps,
     );
     expect(result.result).toBeDefined();
+    expect(result.result?.tabId).toBe(1);
     expect(fakeDeps.captureVisibleTab).toHaveBeenCalled();
   });
 
@@ -567,6 +574,40 @@ describe("handleScreenshot", () => {
     );
     expect(result.error).toBeDefined();
     expect(result.error?.code).toBe("RESTRICTED_URL");
+  });
+
+  test("returns UNKNOWN_ACTION when tabId is provided", async () => {
+    const result = await handleScreenshot(
+      "req-15",
+      { tabId: 123 },
+      fakeDeps,
+    );
+    expect(result.error).toBeDefined();
+    expect(result.error?.code).toBe("UNKNOWN_ACTION");
+    expect(result.error?.message).toContain("captureVisibleTab");
+    expect(result.error?.message).toContain("active tab");
+    expect(result.error?.suggestion).toBeDefined();
+    expect(result.error?.suggestion).toContain("Bring the target tab to the front");
+    // captureVisibleTab should NOT be called
+    expect(fakeDeps.captureVisibleTab).not.toHaveBeenCalled();
+    expect(fakeDeps.getActiveTabUrl).not.toHaveBeenCalled();
+  });
+
+  test("returns UNKNOWN_ACTION when tabId is provided alongside other params", async () => {
+    fakeDeps.getActiveTabUrl.mockResolvedValue("https://example.com");
+    fakeDeps.captureVisibleTab.mockResolvedValue(
+      "data:image/png;base64,shouldnotreach",
+    );
+
+    const result = await handleScreenshot(
+      "req-16",
+      { tabId: 456, format: "jpeg", quality: 90 },
+      fakeDeps,
+    );
+    expect(result.error).toBeDefined();
+    expect(result.error?.code).toBe("UNKNOWN_ACTION");
+    expect(result.error?.suggestion).toContain("navigate");
+    expect(fakeDeps.captureVisibleTab).not.toHaveBeenCalled();
   });
 });
 

@@ -15,6 +15,8 @@ import { send } from "../server.js";
 
 /** Validated parameters for the `browser_type` tool. */
 export interface BrowserTypeParams {
+  /** Target tab ID. When omitted, defaults to the active tab. */
+  tabId?: number;
   /** CSS selector of the input element. */
   selector: string;
   /** Text to type into the element. */
@@ -54,6 +56,10 @@ interface ToolResult {
 export const BROWSER_TYPE_SCHEMA = {
   type: "object",
   properties: {
+    tabId: {
+      type: "integer",
+      description: "Target tab ID. When omitted, defaults to the active tab.",
+    },
     selector: {
       type: "string",
       description: "CSS selector of the input element to type into.",
@@ -87,6 +93,8 @@ export const BROWSER_TYPE_SCHEMA = {
 function validateParams(raw: unknown): raw is BrowserTypeParams {
   if (typeof raw !== "object" || raw === null) return false;
   const p = raw as Record<string, unknown>;
+
+  if (p.tabId !== undefined && (typeof p.tabId !== "number" || !Number.isInteger(p.tabId))) return false;
 
   if (typeof p.selector !== "string" || p.selector.length === 0) return false;
   if (typeof p.text !== "string") return false;
@@ -142,6 +150,7 @@ export async function browserType(
       id: crypto.randomUUID(),
       action: "type",
       params: {
+        tabId: params.tabId,
         selector,
         text,
         clear,
@@ -214,7 +223,7 @@ export async function browserType(
 export const browserTypeTool = {
   name: "browser_type",
   description:
-    "Type text into an input element identified by a CSS selector. Supports input, textarea, and contenteditable elements. Optionally clears the field first and submits the form after typing.",
+    "Type text into an input element identified by a CSS selector. Optionally target a specific tab via tabId; when omitted, defaults to the active tab. Supports input, textarea, and contenteditable elements. Optionally clears the field first and submits the form after typing.",
   schema: BROWSER_TYPE_SCHEMA,
   execute: browserType,
 } as const;

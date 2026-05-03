@@ -29,6 +29,8 @@ export interface ScreenshotDependencies {
 	) => Promise<string>;
 	/** Read the current active tab's URL (for restriction checks). */
 	getActiveTabUrl: () => Promise<string | null>;
+	/** The active tab ID to include in response payloads. */
+	activeTabId: number;
 }
 
 // ── Handler ─────────────────────────────────────────────────────────────
@@ -51,6 +53,20 @@ export async function handleScreenshot(
 	params: unknown,
 	deps: ScreenshotDependencies,
 ): Promise<Response> {
+	// ── 0. Reject tabId (Chrome API limitation) ─────────────────────────
+	if (typeof params === "object" && params !== null && "tabId" in params) {
+		return {
+			id,
+			error: {
+				code: "UNKNOWN_ACTION" as const,
+				message:
+					"Screenshot with tabId is not supported. Chrome's captureVisibleTab API can only capture the currently active tab.",
+				suggestion:
+					"Bring the target tab to the front (e.g. use 'navigate' to switch to it) and then take a screenshot without tabId.",
+			},
+		};
+	}
+
 	// ── 1. Validate parameters ──────────────────────────────────────────
 	const validated = validateScreenshotParams(params);
 
@@ -99,6 +115,7 @@ export async function handleScreenshot(
 		return {
 			id,
 			result: {
+				tabId: deps.activeTabId,
 				data: base64,
 				format: validated.format,
 				...(warning ? { warning } : {}),

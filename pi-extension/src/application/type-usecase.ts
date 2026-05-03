@@ -29,6 +29,7 @@ export async function executeTypeUseCase(
   params: ValidatedTypeParams,
 ): Promise<UseCaseResult<TypeResult>> {
   const response = await sendRequest(transport, "type", {
+    tabId: params.tabId,
     selector: params.selector,
     text: params.text,
     clear: params.clear,

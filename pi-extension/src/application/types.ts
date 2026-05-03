@@ -92,3 +92,37 @@ export interface WaitForTextResult {
   elapsedMs: number;
   text: string;
 }
+
+/** Create-tab use case result. */
+export interface CreateTabResult {
+  /** The ID of the newly created tab. */
+  tabId: number;
+  /** The URL loaded in the new tab. */
+  url: string;
+  /** The page title of the new tab. */
+  title: string;
+}
+
+/** A single tab descriptor returned by the listTabs use case. */
+export interface TabDescriptor {
+  /** Tab ID. */
+  tabId: number;
+  /** Full URL of the tab. */
+  url: string;
+  /** Page title. */
+  title: string;
+  /** Whether this tab is currently active. */
+  active: boolean;
+}
+
+/** List-tabs use case result. */
+export interface ListTabsResult {
+  /** Array of tab descriptors matching the filter criteria. */
+  tabs: TabDescriptor[];
+}
+
+/** Close-tab use case result. */
+export interface CloseTabResult {
+  /** Always true when the tab was successfully closed. */
+  closed: true;
+}

@@ -46,9 +46,10 @@
     // ── Domain layer import restrictions ────────────────────────────────────
     //
     // Clean Architecture: the Domain layer contains enterprise business rules
-    // and must NOT depend on outer layers. Relative imports into application/,
+    // and must NOT depend on outer layers. Imports into application/,
     // infrastructure/, or adapters/ are forbidden.
     //
+    // Uses gitignore-style glob patterns via `group` (Biome v2 noRestrictedImports).
     // Applies to both pi-extension and chrome-extension packages.
     {
       "includes": [
@@ -63,7 +64,11 @@
               "options": {
                 "patterns": [
                   {
-                    "importNamePattern": "[.]{1,2}/(application|infrastructure|adapters)/",
+                    "group": [
+                      "**/application/**",
+                      "**/infrastructure/**",
+                      "**/adapters/**"
+                    ],
                     "message": "Domain layer must not import from application, infrastructure, or adapters layers"
                   }
                 ]
@@ -79,6 +84,7 @@
     // and must NOT depend on the infrastructure or adapter layers. It may
     // import from Domain via interfaces (dependency inversion).
     //
+    // Uses gitignore-style glob patterns via `group` (Biome v2 noRestrictedImports).
     // Applies to both pi-extension and chrome-extension packages.
     {
       "includes": [
@@ -93,7 +99,10 @@
               "options": {
                 "patterns": [
                   {
-                    "importNamePattern": "[.]{1,2}/(infrastructure|adapters)/",
+                    "group": [
+                      "**/infrastructure/**",
+                      "**/adapters/**"
+                    ],
                     "message": "Application layer must not import from infrastructure or adapters layers"
                   }
                 ]

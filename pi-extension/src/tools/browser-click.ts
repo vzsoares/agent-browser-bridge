@@ -15,6 +15,8 @@ import { send } from "../server.js";
 
 /** Validated parameters for the `browser_click` tool. */
 export interface BrowserClickParams {
+  /** Target tab ID. When omitted, defaults to the active tab. */
+  tabId?: number;
   /** CSS selector of the element to click. */
   selector: string;
   /** Optional text content the element must contain (for disambiguation). */
@@ -66,6 +68,10 @@ interface ToolResult {
 export const BROWSER_CLICK_SCHEMA = {
   type: "object",
   properties: {
+    tabId: {
+      type: "integer",
+      description: "Target tab ID. When omitted, defaults to the active tab.",
+    },
     selector: {
       type: "string",
       description: "CSS selector of the element to click.",
@@ -90,6 +96,8 @@ export const BROWSER_CLICK_SCHEMA = {
 function validateParams(raw: unknown): raw is BrowserClickParams {
   if (typeof raw !== "object" || raw === null) return false;
   const p = raw as Record<string, unknown>;
+
+  if (p.tabId !== undefined && (typeof p.tabId !== "number" || !Number.isInteger(p.tabId))) return false;
 
   if (typeof p.selector !== "string" || p.selector.length === 0) return false;
 
@@ -144,6 +152,7 @@ export async function browserClick(
       id: crypto.randomUUID(),
       action: "click",
       params: {
+        tabId: params.tabId,
         selector: params.selector,
         text: params.text,
         timeout,
@@ -239,7 +248,7 @@ export async function browserClick(
 export const browserClickTool = {
   name: "browser_click",
   description:
-    "Click an element on the current browser page by CSS selector. Optionally disambiguate by text content. Reports the clicked element's text and whether navigation occurred after the click.",
+    "Click an element on the browser page by CSS selector. Optionally target a specific tab via tabId; when omitted, defaults to the active tab. Optionally disambiguate by text content. Reports the clicked element's text and whether navigation occurred after the click.",
   schema: BROWSER_CLICK_SCHEMA,
   execute: browserClick,
 } as const;

@@ -19,6 +19,8 @@ import { send } from "../server.js";
 
 /** Validated parameters for the `browser_wait_for_text` tool. */
 export interface BrowserWaitForTextParams {
+  /** Target tab ID. When omitted, defaults to the active tab. */
+  tabId?: number;
   /** Case-sensitive text to wait for. */
   text: string;
   /** Optional CSS selector to limit the search scope. */
@@ -63,6 +65,10 @@ interface ToolResult {
 export const BROWSER_WAIT_FOR_TEXT_SCHEMA = {
   type: "object",
   properties: {
+    tabId: {
+      type: "integer",
+      description: "Target tab ID. When omitted, defaults to the active tab.",
+    },
     text: {
       type: "string",
       description: "Case-sensitive text content to wait for.",
@@ -87,6 +93,8 @@ export const BROWSER_WAIT_FOR_TEXT_SCHEMA = {
 function validateParams(raw: unknown): raw is BrowserWaitForTextParams {
   if (typeof raw !== "object" || raw === null) return false;
   const p = raw as Record<string, unknown>;
+
+  if (p.tabId !== undefined && (typeof p.tabId !== "number" || !Number.isInteger(p.tabId))) return false;
 
   if (typeof p.text !== "string" || p.text.length === 0) return false;
 
@@ -143,6 +151,7 @@ export async function browserWaitForText(
       id: crypto.randomUUID(),
       action: "waitForText",
       params: {
+        tabId: params.tabId,
         text: params.text,
         scope: params.scope,
         timeout,
@@ -200,7 +209,7 @@ export async function browserWaitForText(
 export const browserWaitForTextTool = {
   name: "browser_wait_for_text",
   description:
-    "Wait for specific text content to appear on the page. Optionally scope the search to a CSS selector. Polls every 100ms until the text is found or timeout. Returns the elapsed time when found.",
+    "Wait for specific text content to appear on the page. Optionally target a specific tab via tabId; when omitted, defaults to the active tab. Optionally scope the search to a CSS selector. Polls every 100ms until the text is found or timeout. Returns the elapsed time when found.",
   schema: BROWSER_WAIT_FOR_TEXT_SCHEMA,
   execute: browserWaitForText,
 } as const;

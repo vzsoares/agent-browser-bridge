@@ -20,6 +20,8 @@ import { send } from "../server.js";
 
 /** Validated parameters for the `browser_exec` tool. */
 export interface BrowserExecParams {
+  /** Target tab ID. When omitted, defaults to the active tab. */
+  tabId?: number;
   /** JavaScript code to execute in the page context. */
   code: string;
 }
@@ -42,6 +44,10 @@ interface ToolResult {
 export const BROWSER_EXEC_SCHEMA = {
   type: "object",
   properties: {
+    tabId: {
+      type: "integer",
+      description: "Target tab ID. When omitted, defaults to the active tab.",
+    },
     code: {
       type: "string",
       description:
@@ -56,6 +62,8 @@ export const BROWSER_EXEC_SCHEMA = {
 function validateParams(raw: unknown): raw is BrowserExecParams {
   if (typeof raw !== "object" || raw === null) return false;
   const p = raw as Record<string, unknown>;
+
+  if (p.tabId !== undefined && (typeof p.tabId !== "number" || !Number.isInteger(p.tabId))) return false;
 
   if (typeof p.code !== "string" || p.code.trim().length === 0) return false;
   return true;
@@ -98,6 +106,7 @@ export async function browserExec(
       id: crypto.randomUUID(),
       action: "exec",
       params: {
+        tabId: params.tabId,
         code: params.code,
       } satisfies ExecParams,
     });
@@ -155,7 +164,7 @@ export async function browserExec(
 export const browserExecTool = {
   name: "browser_exec",
   description:
-    "Execute arbitrary JavaScript code in the current browser tab's page context. " +
+    "Execute arbitrary JavaScript code in the browser tab's page context. Optionally target a specific tab via tabId; when omitted, defaults to the active tab. " +
     "Returns the serialised return value (primitives, JSON with circular-ref handling, or a string representation of functions/symbols/bigints). " +
     "Async code is automatically awaited. Output is capped at 10 000 characters.",
   schema: BROWSER_EXEC_SCHEMA,
