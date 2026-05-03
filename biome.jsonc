@@ -1,0 +1,118 @@
+{
+  "$schema": "https://biomejs.dev/schemas/2.4.14/schema.json",
+  "vcs": {
+    "enabled": true,
+    "clientKind": "git",
+    "useIgnoreFile": true
+  },
+  "files": {
+    "includes": ["**", "!node_modules", "!dist", "!build"]
+  },
+  // ── Global Linter Rules ───────────────────────────────────────────────────────
+  //
+  // Base rules apply to all packages (logger, protocol, pi-extension,
+  // chrome-extension) unless overridden below.
+  "linter": {
+    "enabled": true,
+    "rules": {
+      "suspicious": {
+        // Production code must use the logger instead of raw console.* calls.
+        "noConsole": {
+          "level": "error",
+          "fix": "none",
+          "options": {
+            "allow": []
+          }
+        }
+      }
+    }
+  },
+  // ── Overrides ─────────────────────────────────────────────────────────────────
+  //
+  // Target-specific rule adjustments. When multiple overrides match a file,
+  // the last one wins (order matters for the same file pattern).
+  "overrides": [
+    // ── Logger package: console is the intended output mechanism ────────────
+    {
+      "includes": ["logger/src/index.ts"],
+      "linter": {
+        "rules": {
+          "suspicious": {
+            "noConsole": "off"
+          }
+        }
+      }
+    },
+    // ── Domain layer import restrictions ────────────────────────────────────
+    //
+    // Clean Architecture: the Domain layer contains enterprise business rules
+    // and must NOT depend on outer layers. Relative imports into application/,
+    // infrastructure/, or adapters/ are forbidden.
+    //
+    // Applies to both pi-extension and chrome-extension packages.
+    {
+      "includes": [
+        "**/pi-extension/src/domain/**",
+        "**/chrome-extension/src/domain/**"
+      ],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "importNamePattern": "[.]{1,2}/(application|infrastructure|adapters)/",
+                    "message": "Domain layer must not import from application, infrastructure, or adapters layers"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    // ── Application layer import restrictions ───────────────────────────────
+    //
+    // Clean Architecture: the Application layer contains use-case orchestration
+    // and must NOT depend on the infrastructure or adapter layers. It may
+    // import from Domain via interfaces (dependency inversion).
+    //
+    // Applies to both pi-extension and chrome-extension packages.
+    {
+      "includes": [
+        "**/pi-extension/src/application/**",
+        "**/chrome-extension/src/application/**"
+      ],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "importNamePattern": "[.]{1,2}/(infrastructure|adapters)/",
+                    "message": "Application layer must not import from infrastructure or adapters layers"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    // ── Test files: allow console for debugging ─────────────────────────────
+    {
+      "includes": ["**/__tests__/**"],
+      "linter": {
+        "rules": {
+          "suspicious": {
+            "noConsole": "off"
+          }
+        }
+      }
+    }
+  ]
+}

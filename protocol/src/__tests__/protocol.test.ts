@@ -21,7 +21,7 @@ import type {
 // ═══════════════════════════════════════════════════════════════════════════
 
 describe("Action type", () => {
-  test("membership — all six actions are recognised", () => {
+  test("membership — all eight actions are recognised", () => {
     const actions: Action[] = [
       "navigate",
       "click",
@@ -29,8 +29,10 @@ describe("Action type", () => {
       "screenshot",
       "read",
       "exec",
+      "waitForElement",
+      "waitForText",
     ];
-    expect(actions).toHaveLength(6);
+    expect(actions).toHaveLength(8);
   });
 
   test("each action is a non-empty string literal", () => {
@@ -41,6 +43,8 @@ describe("Action type", () => {
       "screenshot",
       "read",
       "exec",
+      "waitForElement",
+      "waitForText",
     ];
     for (const a of actions) {
       expect(typeof a).toBe("string");
@@ -56,6 +60,8 @@ describe("Action type", () => {
       "screenshot",
       "read",
       "exec",
+      "waitForElement",
+      "waitForText",
     ];
     const unique = new Set(actions);
     expect(unique.size).toBe(actions.length);

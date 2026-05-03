@@ -8,24 +8,30 @@
  * Chrome extension interacting with test-fixture.html.
  *
  * Coverage:
- * - All 5 tool handlers (navigate, click, type, read, screenshot) + exec
+ * - All 8 tool handlers (navigate, screenshot, click, type, read, exec,
+ *   waitForElement, waitForText)
  * - Request/response correlation by id
  * - Concurrent requests
  * - Error paths: ELEMENT_NOT_FOUND, TIMEOUT, disconnect
  * - Reconnection: client drop → new client → requests flow again
  *
+ * NOTE: This test is explicitly excluded from CI. It requires a real
+ * WebSocket server and is intended as a manual pre-merge gate.
+ * It is NOT listed in vitest.config.ts projects and uses bun:test directly.
+ *
  * @module e2e.test
  */
 
 import { describe, test, expect, beforeEach, afterEach } from "bun:test";
-import { start, stop, send } from "../server.js";
-import {
-  browserNavigate,
-  browserClick,
-  browserType,
-  browserRead,
-  browserScreenshot,
-} from "../index.js";
+import { start, stop, send } from "../infrastructure/ws-server.js";
+import { browserNavigate } from "../tools/browser-navigate.js";
+import { browserClick } from "../tools/browser-click.js";
+import { browserType } from "../tools/browser-type.js";
+import { browserRead } from "../tools/browser-read.js";
+import { browserScreenshot } from "../tools/browser-screenshot.js";
+import { browserExec } from "../tools/browser-exec.js";
+import { browserWaitForElement } from "../tools/browser-wait-for-element.js";
+import { browserWaitForText } from "../tools/browser-wait-for-text.js";
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -264,7 +270,43 @@ function createSimBrowser(
       case "exec": {
         const code = typeof req.params?.code === "string" ? req.params.code : "";
         respond(req.id, {
-          result: `Executed: ${code.slice(0, 50)}`,
+          serialized: `Executed: ${code.slice(0, 50)}`,
+        });
+        break;
+      }
+
+      case "waitForElement": {
+        if (!selector || selector === ".missing") {
+          respondError(
+            req.id,
+            "TIMEOUT",
+            `Element "${selector || "(empty)"}" did not appear within the timeout.`,
+          );
+          return;
+        }
+        respond(req.id, {
+          found: true,
+          elapsedMs: 42,
+          selector,
+          tagName: selector.startsWith("#") ? "div" : selector,
+        });
+        break;
+      }
+
+      case "waitForText": {
+        const text = typeof req.params?.text === "string" ? req.params.text : "";
+        if (!text || text === "never-appears") {
+          respondError(
+            req.id,
+            "TIMEOUT",
+            `Text "${text || "(empty)"}" did not appear within the timeout.`,
+          );
+          return;
+        }
+        respond(req.id, {
+          found: true,
+          elapsedMs: 42,
+          text,
         });
         break;
       }
@@ -680,21 +722,105 @@ describe("E2E: Full round-trips", () => {
     });
   });
 
-  describe("exec (raw send)", () => {
-    test("sends exec action through the server round-trip", async () => {
+  describe("browser_exec", () => {
+    test("executes code and returns serialised result", async () => {
       const ws = await connectClient(port);
       attachSimBrowser(ws);
 
-      const response = await send({
-        id: "exec-e2e-1",
-        action: "exec",
-        params: { code: "document.title" },
-      });
-
-      expect(response.id).toBe("exec-e2e-1");
-      expect(response.error).toBeUndefined();
-      expect(response.result).toEqual({ result: "Executed: document.title" });
+      const result = await browserExec({ code: "document.title" });
+      expectSuccess(result);
+      expect(result.content[0].text).toContain("Executed: document.title");
       ws.close();
+    });
+
+    test("handles connection loss during exec", async () => {
+      const ws = await connectClient(port);
+      ws.onmessage = () => {}; // never respond
+
+      const promise = browserExec({ code: "while(true){}" });
+      await sleep(100);
+      ws.close();
+
+      const result = await promise;
+      expectError(result, "Exec request failed");
+    });
+  });
+
+  describe("browser_wait_for_element", () => {
+    test("returns element info when found", async () => {
+      const ws = await connectClient(port);
+      attachSimBrowser(ws);
+
+      const result = await browserWaitForElement({ selector: "#dynamic-element" });
+      expectSuccess(result);
+      expect(result.content[0].text).toContain("#dynamic-element");
+      expect(result.content[0].text).toContain("found in");
+      ws.close();
+    });
+
+    test("returns TIMEOUT when element never appears", async () => {
+      const ws = await connectClient(port);
+      attachSimBrowser(ws);
+
+      const result = await browserWaitForElement({ selector: ".missing", timeout: 1000 });
+      expectError(result, "did not appear");
+      ws.close();
+    });
+
+    test("handles connection loss during wait", async () => {
+      const ws = await connectClient(port);
+      ws.onmessage = () => {}; // never respond
+
+      const promise = browserWaitForElement({ selector: "#something", timeout: 5000 });
+      await sleep(100);
+      ws.close();
+
+      const result = await promise;
+      expectError(result, "Wait request failed");
+    });
+  });
+
+  describe("browser_wait_for_text", () => {
+    test("returns text info when found", async () => {
+      const ws = await connectClient(port);
+      attachSimBrowser(ws);
+
+      const result = await browserWaitForText({ text: "Hello World" });
+      expectSuccess(result);
+      expect(result.content[0].text).toContain("Hello World");
+      expect(result.content[0].text).toContain("found in");
+      ws.close();
+    });
+
+    test("respects scope selector", async () => {
+      const ws = await connectClient(port);
+      attachSimBrowser(ws);
+
+      const result = await browserWaitForText({ text: "Section 1", scope: "h2" });
+      expectSuccess(result);
+      expect(result.content[0].text).toContain("Section 1");
+      ws.close();
+    });
+
+    test("returns TIMEOUT when text never appears", async () => {
+      const ws = await connectClient(port);
+      attachSimBrowser(ws);
+
+      const result = await browserWaitForText({ text: "never-appears", timeout: 1000 });
+      expectError(result, "did not appear");
+      ws.close();
+    });
+
+    test("handles connection loss during wait", async () => {
+      const ws = await connectClient(port);
+      ws.onmessage = () => {}; // never respond
+
+      const promise = browserWaitForText({ text: "something", timeout: 5000 });
+      await sleep(100);
+      ws.close();
+
+      const result = await promise;
+      expectError(result, "Wait request failed");
     });
   });
 });

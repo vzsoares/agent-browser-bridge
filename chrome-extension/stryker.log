@@ -1,0 +1,497 @@
+23:49:18 (87580) DEBUG ConfigReader Loading config from stryker.config.json
+23:49:18 (87580) DEBUG ConfigReader Loaded config: {
+  "$schema": "https://raw.githubusercontent.com/stryker-mutator/stryker-js/master/stryker-core.json",
+  "testRunner": "vitest",
+  "vitest": {
+    "configFile": "./vitest.config.ts",
+    "related": false
+  },
+  "plugins": [
+    "@stryker-mutator/vitest-runner"
+  ],
+  "reporters": [
+    "clear-text",
+    "html",
+    "progress"
+  ],
+  "htmlReporter": {
+    "fileName": "../reports/mutation/index.html"
+  },
+  "mutate": [
+    "src/domain/**/*.ts",
+    "!src/domain/**/__tests__/**",
+    "!src/domain/**/*.d.ts"
+  ],
+  "thresholds": {
+    "high": 80,
+    "low": 60,
+    "break": null
+  },
+  "timeoutMS": 30000,
+  "concurrency": 1,
+  "incremental": true,
+  "incrementalFile": "../.cache/stryker-incremental.json",
+  "coverageAnalysis": "perTest",
+  "mutator": {
+    "excludedMutations": [
+      "StringLiteral",
+      "ArrayDeclaration",
+      "ObjectLiteral"
+    ],
+    "plugins": null
+  },
+  "checkers": [],
+  "allowConsoleColors": true,
+  "cleanTempDir": true,
+  "disableTypeChecks": false,
+  "ignoreStatic": true,
+  "dryRunOnly": true,
+  "fileLogLevel": "trace",
+  "checkerNodeArgs": [],
+  "commandRunner": {
+    "command": "npm test"
+  },
+  "clearTextReporter": {
+    "allowColor": true,
+    "allowEmojis": false,
+    "logTests": true,
+    "maxTestsToLog": 3,
+    "reportTests": true,
+    "reportMutants": true,
+    "reportScoreTable": true,
+    "skipFull": false
+  },
+  "dashboard": {
+    "baseUrl": "https://dashboard.stryker-mutator.io/api/reports",
+    "reportType": "full"
+  },
+  "eventReporter": {
+    "baseDir": "reports/mutation/events"
+  },
+  "ignorePatterns": [],
+  "force": false,
+  "inPlace": false,
+  "logLevel": "info",
+  "maxConcurrentTestRunners": 9007199254740991,
+  "maxTestRunnerReuse": 0,
+  "appendPlugins": [],
+  "jsonReporter": {
+    "fileName": "reports/mutation/mutation.json"
+  },
+  "symlinkNodeModules": true,
+  "tempDirName": ".stryker-tmp",
+  "testRunnerNodeArgs": [],
+  "timeoutFactor": 1.5,
+  "dryRunTimeoutMinutes": 5,
+  "tsconfigFile": "tsconfig.json",
+  "warnings": true,
+  "disableBail": false,
+  "allowEmpty": false,
+  "ignorers": [],
+  "testFiles": []
+}
+23:49:18 (87580) DEBUG PluginLoader Loading plugin @stryker-mutator/vitest-runner
+23:49:18 (87580) DEBUG PluginLoader Loading plugin file:///Users/marco/w/marco-souza/pi-browser-bridge/node_modules/.bun/@stryker-mutator+instrumenter@9.6.1/node_modules/@stryker-mutator/instrumenter/dist/src/frameworks/index.js
+23:49:18 (87580) DEBUG PluginLoader Loading plugin file:///Users/marco/w/marco-souza/pi-browser-bridge/node_modules/.bun/@stryker-mutator+core@9.6.1+144f69348538ea2c/node_modules/@stryker-mutator/core/dist/src/reporters/index.js
+23:49:18 (87580) DEBUG MetaSchemaBuilder Contributing 1 schemas from plugins to options validation.
+23:49:18 (87580) WARN ProjectReader Glob pattern "!src/domain/**/*.d.ts" did not exclude any files.
+23:49:18 (87580) INFO ProjectReader No incremental result file found at ../.cache/stryker-incremental.json, a full mutation testing run will be performed.
+23:49:18 (87580) INFO ProjectReader Found 7 of 63 file(s) to be mutated.
+23:49:18 (87580) DEBUG ProjectReader All input files: [
+  "/Users/marco/w/marco-souza/pi-browser-bridge/chrome-extension/dist/assets/background.ts-YrlzMpS4.js",
+  "/Users/marco/w/marco-souza/pi-browser-bridge/chrome-extension/dist/assets/index-DDAKqyMn.css",
+  "/Users/marco/w/marco-souza/pi-browser-bridge/chrome-extension/dist/assets/index.html-DI_Re4Ol.js",
+  "/Users/marco/w/marco-souza/pi-browser-bridge/chrome-extension/dist/assets/index.ts-DaCv4c50.js",
+  "/Users/marco/w/marco-souza/pi-browser-bridge/chrome-extension/dist/manifest.json",
+  "/Users/marco/w/marco-souza/pi-browser-bridge/chrome-extension/dist/service-worker-loader.js",
+  "/Users/marco/w/marco-souza/pi-browser-bridge/chrome-extension/dist/src/popup/index.html",
+  "/Users/marco/w/marco-souza/pi-browser-bridge/chrome-extension/manifest.json",
+  "/Users/marco/w/marco-souza/pi-browser-bridge/chrome-extension/package.json",
+  "/Users/marco/w/marco-souza/pi-browser-bridge/chrome-extension/src/__tests__/mocks/chrome-runtime.ts",
+  "/Users/marco/w/marco-souza/pi-browser-bridge/chrome-extension/src/__tests__/mocks/chrome-storage.ts",
+  "/Users/marco/w/marco-souza/pi-browser-bridge/chrome-extension/src/__tests__/mocks/chrome-tabs.ts",
+  "/Users/marco/w/marco-souza/pi-browser-bridge/chrome-extension/src/__tests__/mocks/index.ts",
+  "/Users/marco/w/marco-souza/pi-browser-bridge/chrome-extension/src/__tests__/mocks/websocket.ts",
+  "/Users/marco/w/marco-souza/pi-browser-bridge/chrome-extension/src/__tests__/smoke.test.ts",
+  "/Users/marco/w/marco-souza/pi-browser-bridge/chrome-extension/src/__tests__/vitest.setup.ts",
+  "/Users/marco/w/marco-souza/pi-browser-bridge/chrome-extension/src/application/__tests__/dispatcher.test.ts",
+  "/Users/marco/w/marco-souza/pi-browser-bridge/chrome-extension/src/application/__tests__/handlers.test.ts",
+  "/Users/marco/w/marco-souza/pi-browser-bridge/chrome-extension/src/application/dispatcher.ts",
+  "/Users/marco/w/marco-souza/pi-browser-bridge/chrome-extension/src/application/handle-click.ts",
+  "/Users/marco/w/marco-souza/pi-browser-bridge/chrome-extension/src/application/handle-exec.ts",
+  "/Users/marco/w/marco-souza/pi-browser-bridge/chrome-extension/src/application/handle-navigate.ts",
+  "/Users/marco/w/marco-souza/pi-browser-bridge/chrome-extension/src/application/handle-read.ts",
+  "/Users/marco/w/marco-souza/pi-browser-bridge/chrome-extension/src/application/handle-screenshot.ts",
+  "/Users/marco/w/marco-souza/pi-browser-bridge/chrome-extension/src/application/handle-type.ts",
+  "/Users/marco/w/marco-souza/pi-browser-bridge/chrome-extension/src/application/handle-wait-for-element.ts",
+  "/Users/marco/w/marco-souza/pi-browser-bridge/chrome-extension/src/application/handle-wait-for-text.ts",
+  "/Users/marco/w/marco-souza/pi-browser-bridge/chrome-extension/src/application/index.ts",
+  "/Users/marco/w/marco-souza/pi-browser-bridge/chrome-extension/src/application/types.ts",
+  "/Users/marco/w/marco-souza/pi-browser-bridge/chrome-extension/src/background/background.ts",
+  "/Users/marco/w/marco-souza/pi-browser-bridge/chrome-extension/src/content/index.ts",
+  "/Users/marco/w/marco-souza/pi-browser-bridge/chrome-extension/src/domain/__tests__/allowlist.test.ts",
+  "/Users/marco/w/marco-souza/pi-browser-bridge/chrome-extension/src/domain/__tests__/dom.test.ts",
+  "/Users/marco/w/marco-souza/pi-browser-bridge/chrome-extension/src/domain/__tests__/errors.test.ts",
+  "/Users/marco/w/marco-souza/pi-browser-bridge/chrome-extension/src/domain/__tests__/interactions.test.ts",
+  "/Users/marco/w/marco-souza/pi-browser-bridge/chrome-extension/src/domain/__tests__/screenshot.test.ts",
+  "/Users/marco/w/marco-souza/pi-browser-bridge/chrome-extension/src/domain/allowlist.ts",
+  "/Users/marco/w/marco-souza/pi-browser-bridge/chrome-extension/src/domain/constants.ts",
+  "/Users/marco/w/marco-souza/pi-browser-bridge/chrome-extension/src/domain/dom.ts",
+  "/Users/marco/w/marco-souza/pi-browser-bridge/chrome-extension/src/domain/errors.ts",
+  "/Users/marco/w/marco-souza/pi-browser-bridge/chrome-extension/src/domain/index.ts",
+  "/Users/marco/w/marco-souza/pi-browser-bridge/chrome-extension/src/domain/interactions.ts",
+  "/Users/marco/w/marco-souza/pi-browser-bridge/chrome-extension/src/domain/screenshot.ts",
+  "/Users/marco/w/marco-souza/pi-browser-bridge/chrome-extension/src/index.ts",
+  "/Users/marco/w/marco-souza/pi-browser-bridge/chrome-extension/src/infrastructure/__tests__/chrome-api.test.ts",
+  "/Users/marco/w/marco-souza/pi-browser-bridge/chrome-extension/src/infrastructure/__tests__/chrome-tabs.test.ts",
+  "/Users/marco/w/marco-souza/pi-browser-bridge/chrome-extension/src/infrastructure/__tests__/message-router.test.ts",
+  "/Users/marco/w/marco-souza/pi-browser-bridge/chrome-extension/src/infrastructure/__tests__/websocket-client.test.ts",
+  "/Users/marco/w/marco-souza/pi-browser-bridge/chrome-extension/src/infrastructure/background-service.ts",
+  "/Users/marco/w/marco-souza/pi-browser-bridge/chrome-extension/src/infrastructure/chrome-runtime.ts",
+  "/Users/marco/w/marco-souza/pi-browser-bridge/chrome-extension/src/infrastructure/chrome-storage.ts",
+  "/Users/marco/w/marco-souza/pi-browser-bridge/chrome-extension/src/infrastructure/chrome-tabs.ts",
+  "/Users/marco/w/marco-souza/pi-browser-bridge/chrome-extension/src/infrastructure/content-listener.ts",
+  "/Users/marco/w/marco-souza/pi-browser-bridge/chrome-extension/src/infrastructure/index.ts",
+  "/Users/marco/w/marco-souza/pi-browser-bridge/chrome-extension/src/infrastructure/message-router.ts",
+  "/Users/marco/w/marco-souza/pi-browser-bridge/chrome-extension/src/infrastructure/websocket-client.ts",
+  "/Users/marco/w/marco-souza/pi-browser-bridge/chrome-extension/src/popup/index.css",
+  "/Users/marco/w/marco-souza/pi-browser-bridge/chrome-extension/src/popup/index.html",
+  "/Users/marco/w/marco-souza/pi-browser-bridge/chrome-extension/src/popup/index.ts",
+  "/Users/marco/w/marco-souza/pi-browser-bridge/chrome-extension/stryker.config.json",
+  "/Users/marco/w/marco-souza/pi-browser-bridge/chrome-extension/tsconfig.json",
+  "/Users/marco/w/marco-souza/pi-browser-bridge/chrome-extension/vite.config.ts",
+  "/Users/marco/w/marco-souza/pi-browser-bridge/chrome-extension/vitest.config.ts"
+]
+23:49:18 (87580) DEBUG ProjectReader Files to mutate: [
+  "/Users/marco/w/marco-souza/pi-browser-bridge/chrome-extension/src/domain/allowlist.ts",
+  "/Users/marco/w/marco-souza/pi-browser-bridge/chrome-extension/src/domain/constants.ts",
+  "/Users/marco/w/marco-souza/pi-browser-bridge/chrome-extension/src/domain/dom.ts",
+  "/Users/marco/w/marco-souza/pi-browser-bridge/chrome-extension/src/domain/errors.ts",
+  "/Users/marco/w/marco-souza/pi-browser-bridge/chrome-extension/src/domain/index.ts",
+  "/Users/marco/w/marco-souza/pi-browser-bridge/chrome-extension/src/domain/interactions.ts",
+  "/Users/marco/w/marco-souza/pi-browser-bridge/chrome-extension/src/domain/screenshot.ts"
+]
+23:49:19 (87580) DEBUG TemporaryDirectory Using temp directory "/Users/marco/w/marco-souza/pi-browser-bridge/chrome-extension/.stryker-tmp/sandbox-VXCBOR"
+23:49:19 (87580) DEBUG Instrumenter Instrumenting 7 source files with mutants
+23:49:19 (87580) DEBUG Instrumenter Instrumented src/domain/allowlist.ts (49 mutant(s))
+23:49:19 (87580) DEBUG Instrumenter Instrumented src/domain/constants.ts (43 mutant(s))
+23:49:19 (87580) DEBUG Instrumenter Instrumented src/domain/dom.ts (697 mutant(s))
+23:49:19 (87580) DEBUG Instrumenter Instrumented src/domain/errors.ts (12 mutant(s))
+23:49:19 (87580) DEBUG Instrumenter Instrumented src/domain/index.ts (0 mutant(s))
+23:49:19 (87580) DEBUG Instrumenter Instrumented src/domain/interactions.ts (199 mutant(s))
+23:49:19 (87580) DEBUG Instrumenter Instrumented src/domain/screenshot.ts (66 mutant(s))
+23:49:19 (87580) INFO Instrumenter Instrumented 7 source file(s) with 1066 mutant(s)
+23:49:19 (87580) DEBUG TSConfigPreprocessor Rewriting file ProjectFile {
+  fs: [FileSystem],
+  name: '/Users/marco/w/marco-souza/pi-browser-bridge/chrome-extension/tsconfig.json',
+  mutate: false
+}
+23:49:19 (87580) INFO ConcurrencyTokenProvider Creating 1 test runner process(es).
+23:49:19 (87580) DEBUG ChildProcessProxy Started CheckerWorker in worker process 0 with pid 87581 
+23:49:19 (87581) DEBUG PluginLoader Loading plugin @stryker-mutator/vitest-runner
+23:49:19 (87581) DEBUG PluginLoader Loading plugin file:///Users/marco/w/marco-souza/pi-browser-bridge/node_modules/.bun/@stryker-mutator+instrumenter@9.6.1/node_modules/@stryker-mutator/instrumenter/dist/src/frameworks/index.js
+23:49:19 (87581) DEBUG PluginLoader Loading plugin file:///Users/marco/w/marco-souza/pi-browser-bridge/node_modules/.bun/@stryker-mutator+core@9.6.1+144f69348538ea2c/node_modules/@stryker-mutator/core/dist/src/reporters/index.js
+23:49:19 (87580) DEBUG Sandbox Creating a sandbox for files in /Users/marco/w/marco-souza/pi-browser-bridge/chrome-extension/.stryker-tmp/sandbox-VXCBOR
+23:49:19 (87580) DEBUG Sandbox Start symlink node_modules
+23:49:19 (87580) DEBUG Sandbox Create symlink from /Users/marco/w/marco-souza/pi-browser-bridge/chrome-extension/node_modules to /Users/marco/w/marco-souza/pi-browser-bridge/chrome-extension/.stryker-tmp/sandbox-VXCBOR/node_modules
+23:49:19 (87580) INFO BroadcastReporter Detected that current console does not support the "progress" reporter, downgrading to "progress-append-only" reporter
+23:49:19 (87580) DEBUG BroadcastReporter Broadcasting to reporters ["clear-text","html","progress-append-only"]
+23:49:19 (87580) DEBUG ChildProcessProxy Started ChildProcessTestRunnerWorker in worker process 0 with pid 87582 
+23:49:19 (87582) DEBUG PluginLoader Loading plugin @stryker-mutator/vitest-runner
+23:49:19 (87582) DEBUG PluginLoader Loading plugin file:///Users/marco/w/marco-souza/pi-browser-bridge/node_modules/.bun/@stryker-mutator+instrumenter@9.6.1/node_modules/@stryker-mutator/instrumenter/dist/src/frameworks/index.js
+23:49:19 (87582) DEBUG PluginLoader Loading plugin file:///Users/marco/w/marco-souza/pi-browser-bridge/node_modules/.bun/@stryker-mutator+core@9.6.1+144f69348538ea2c/node_modules/@stryker-mutator/core/dist/src/reporters/index.js
+23:49:19 (87582) DEBUG ChildProcessProxyWorker Changing current working directory for this process to /Users/marco/w/marco-souza/pi-browser-bridge/chrome-extension/.stryker-tmp/sandbox-VXCBOR
+23:49:19 (87580) TRACE ChildProcessProxy  DEPRECATED  `test.poolOptions` was removed in Vitest 4. All previous `poolOptions` are now top-level options. Please, refer to the migration guide: https://vitest.dev/guide/migration#pool-rework
+
+23:49:19 (87580) INFO DryRunExecutor Note: running the dry-run only. No mutations will be tested.
+23:49:19 (87580) INFO DryRunExecutor Starting initial test run (vitest test runner with "perTest" coverage analysis). This may take a while.
+23:49:19 (87580) DEBUG DryRunExecutor Using timeout of 300000 ms.
+23:49:19 (87580) DEBUG TimeoutDecorator Starting timeout timer (300000 ms) for a test run
+23:49:19 (87582) DEBUG VitestTestRunner vitest final config: {
+  "allowOnly": true,
+  "isolate": true,
+  "watch": false,
+  "globals": true,
+  "environment": "happy-dom",
+  "clearMocks": false,
+  "restoreMocks": false,
+  "mockReset": false,
+  "unstubGlobals": false,
+  "unstubEnvs": false,
+  "include": [
+    "src/**/*.test.ts",
+    "src/**/*.spec.ts"
+  ],
+  "exclude": [
+    "**/e2e/**",
+    "**/e2e.test.ts"
+  ],
+  "teardownTimeout": 10000,
+  "forceRerunTriggers": [
+    "**/package.json/**",
+    "**/{vitest,vite}.config.*/**",
+    "/Users/marco/w/marco-souza/pi-browser-bridge/chrome-extension/.stryker-tmp/sandbox-VXCBOR/src/__tests__/vitest.setup.ts"
+  ],
+  "update": false,
+  "reporters": [
+    [
+      "agent",
+      {}
+    ]
+  ],
+  "silent": false,
+  "hideSkippedTests": false,
+  "api": {
+    "middlewareMode": true,
+    "allowWrite": true,
+    "allowExec": true,
+    "token": "7287bd35-5ce3-4466-896e-8ee8212a2e7b"
+  },
+  "ui": false,
+  "uiBase": "/__vitest__/",
+  "open": true,
+  "css": {
+    "include": [],
+    "modules": {
+      "classNameStrategy": "stable"
+    }
+  },
+  "coverage": {
+    "provider": "v8",
+    "enabled": false,
+    "clean": true,
+    "cleanOnRerun": true,
+    "reportsDirectory": "./coverage",
+    "exclude": [
+      "src/__tests__/vitest.setup.ts",
+      "src/**/*.test.ts",
+      "src/**/*.spec.ts",
+      "/Users/marco/w/marco-souza/pi-browser-bridge/chrome-extension/.stryker-tmp/sandbox-VXCBOR/vitest.config.ts",
+      "vitest.config.ts",
+      "vitest.config.mts",
+      "vitest.config.cts",
+      "vitest.config.js",
+      "vitest.config.mjs",
+      "vitest.config.cjs",
+      "vite.config.ts",
+      "vite.config.mts",
+      "vite.config.cts",
+      "vite.config.js",
+      "vite.config.mjs",
+      "vite.config.cjs",
+      "**/virtual:*",
+      "**/__x00__*",
+      "**/node_modules/**"
+    ],
+    "reportOnFailure": false,
+    "reporter": [
+      [
+        "text",
+        {
+          "skipFull": true
+        }
+      ],
+      [
+        "html",
+        {}
+      ],
+      [
+        "clover",
+        {}
+      ],
+      [
+        "json",
+        {}
+      ],
+      [
+        "text-summary",
+        {}
+      ]
+    ],
+    "allowExternal": false,
+    "excludeAfterRemap": false,
+    "processingConcurrency": 11,
+    "ignoreClassMethods": [],
+    "skipFull": false,
+    "watermarks": {
+      "statements": [
+        50,
+        80
+      ],
+      "functions": [
+        50,
+        80
+      ],
+      "branches": [
+        50,
+        80
+      ],
+      "lines": [
+        50,
+        80
+      ]
+    }
+  },
+  "fakeTimers": {
+    "loopLimit": 10000,
+    "shouldClearNativeTimers": true
+  },
+  "maxConcurrency": 1,
+  "dangerouslyIgnoreUnhandledErrors": false,
+  "typecheck": {
+    "checker": "tsc",
+    "include": [
+      "**/*.{test,spec}-d.?(c|m)[jt]s?(x)"
+    ],
+    "exclude": [
+      "**/node_modules/**",
+      "**/.git/**"
+    ],
+    "enabled": false
+  },
+  "slowTestThreshold": 300,
+  "disableConsoleIntercept": false,
+  "detectAsyncLeaks": false,
+  "setupFiles": [
+    "/Users/marco/w/marco-souza/pi-browser-bridge/chrome-extension/.stryker-tmp/sandbox-VXCBOR/stryker-setup-0.js",
+    "/Users/marco/w/marco-souza/pi-browser-bridge/chrome-extension/.stryker-tmp/sandbox-VXCBOR/src/__tests__/vitest.setup.ts"
+  ],
+  "deps": {
+    "moduleDirectories": [
+      "/node_modules/"
+    ],
+    "optimizer": {
+      "ssr": {
+        "enabled": false
+      },
+      "client": {
+        "enabled": false
+      }
+    },
+    "web": {
+      "transformAssets": true,
+      "transformCss": true,
+      "transformGlobPattern": []
+    }
+  },
+  "server": {
+    "deps": {}
+  },
+  "config": "/Users/marco/w/marco-souza/pi-browser-bridge/chrome-extension/.stryker-tmp/sandbox-VXCBOR/vitest.config.ts",
+  "threads": true,
+  "pool": "threads",
+  "poolOptions": {
+    "threads": {
+      "maxThreads": 1,
+      "minThreads": 1
+    }
+  },
+  "maxWorkers": 1,
+  "singleThread": false,
+  "bail": 1,
+  "defines": {},
+  "viteDefine": {},
+  "root": "/Users/marco/w/marco-souza/pi-browser-bridge/chrome-extension/.stryker-tmp/sandbox-VXCBOR",
+  "mode": "test",
+  "project": [],
+  "provide": {},
+  "tags": [],
+  "name": "",
+  "inspector": {
+    "enabled": false,
+    "waitForDebugger": false
+  },
+  "clearScreen": true,
+  "browser": {
+    "enabled": false,
+    "headless": false,
+    "isolate": true,
+    "fileParallelism": true,
+    "ui": true,
+    "commands": {},
+    "detailsPanelPosition": "right",
+    "viewport": {
+      "width": 414,
+      "height": 896
+    },
+    "locators": {
+      "testIdAttribute": "data-testid",
+      "exact": false
+    },
+    "screenshotFailures": false,
+    "api": {
+      "port": 63315,
+      "allowWrite": true,
+      "allowExec": true
+    },
+    "trace": {
+      "mode": "off"
+    }
+  },
+  "expect": {},
+  "globalSetup": [],
+  "attachmentsDir": "/Users/marco/w/marco-souza/pi-browser-bridge/chrome-extension/.stryker-tmp/sandbox-VXCBOR/.vitest-attachments",
+  "snapshotOptions": {
+    "expand": false,
+    "snapshotFormat": {},
+    "updateSnapshot": "new",
+    "snapshotEnvironment": null
+  },
+  "snapshotSerializers": [],
+  "execArgv": [],
+  "cache": {
+    "dir": "/Users/marco/w/marco-souza/pi-browser-bridge/chrome-extension/.stryker-tmp/sandbox-VXCBOR/node_modules/.vite/vitest/da39a3ee5e6b4b0d3255bfef95601890afd80709"
+  },
+  "sequence": {
+    "groupOrder": 0,
+    "hooks": "stack"
+  },
+  "testTimeout": 5000,
+  "hookTimeout": 10000,
+  "experimental": {
+    "importDurations": {
+      "print": false,
+      "failOnDanger": false,
+      "limit": 0,
+      "thresholds": {
+        "warn": 100,
+        "danger": 500
+      }
+    }
+  }
+}
+23:49:19 (87580) TRACE ChildProcessProxy 
+
+23:49:19 (87580) TRACE ChildProcessProxy  RUN  v4.1.5 /Users/marco/w/marco-souza/pi-browser-bridge/chrome-extension/.stryker-tmp/sandbox-VXCBOR
+
+
+23:49:20 (87580) TRACE ChildProcessProxy 11:49:20 PM [vite] (client) Failed to load source map for /Users/marco/w/marco-souza/pi-browser-bridge/chrome-extension/.stryker-tmp/sandbox-VXCBOR/stryker-setup-0.js.
+Error: An error occurred while trying to read the map file at stryker-setup.js.map
+Error: ENOENT: no such file or directory, open '/Users/marco/w/marco-souza/pi-browser-bridge/chrome-extension/.stryker-tmp/sandbox-VXCBOR/stryker-setup.js.map'
+    at Object.readFileSync (node:fs:436:20)
+    at file:///Users/marco/w/marco-souza/pi-browser-bridge/node_modules/.bun/vite@8.0.10+47310af3ae27c080/node_modules/vite/dist/node/chunks/node.js:20079:13
+    at readFromFileMap (file:///Users/marco/w/marco-souza/pi-browser-bridge/node_modules/.bun/vite@8.0.10+47310af3ae27c080/node_modules/vite/dist/node/chunks/node.js:19858:13)
+    at Object.exports.fromMapFileComment (file:///Users/marco/w/marco-souza/pi-browser-bridge/node_modules/.bun/vite@8.0.10+47310af3ae27c080/node_modules/vite/dist/node/chunks/node.js:19952:12)
+    at Object.exports.fromMapFileSource (file:///Users/marco/w/marco-souza/pi-browser-bridge/node_modules/.bun/vite@8.0.10+47310af3ae27c080/node_modules/vite/dist/node/chunks/node.js:19963:22)
+    at extractSourcemapFromFile (file:///Users/marco/w/marco-souza/pi-browser-bridge/node_modules/.bun/vite@8.0.10+47310af3ae27c080/node_modules/vite/dist/node/chunks/node.js:20065:87)
+    at loadAndTransform (file:///Users/marco/w/marco-souza/pi-browser-bridge/node_modules/.bun/vite@8.0.10+47310af3ae27c080/node_modules/vite/dist/node/chunks/node.js:24478:22)
+
+23:49:24 (87580) TRACE ChildProcessProxy 
+
+23:49:24 (87580) TRACE ChildProcessProxy  Test Files  12 passed (12)
+
+23:49:24 (87580) TRACE ChildProcessProxy       Tests  422 passed (422)
+
+23:49:24 (87580) TRACE ChildProcessProxy    Start at  23:49:19
+
+23:49:24 (87580) TRACE ChildProcessProxy    Duration  4.87s (transform 143ms, setup 81ms, import 186ms, tests 2.24s, environment 1.45s)
+
+23:49:24 (87580) TRACE ChildProcessProxy 
+
+23:49:24 (87580) INFO DryRunExecutor Initial test run succeeded. Ran 422 tests in 4 seconds (net 2223.587986999996 ms, overhead 2657.412013000004 ms).
+23:49:24 (87580) INFO MutationTestExecutor The dry-run has been completed successfully. No mutations have been executed.
+23:49:24 (87580) DEBUG ChildProcessProxy Disposing of worker process 87582
+23:49:24 (87580) DEBUG ChildProcessProxy Kill 87582
+23:49:24 (87580) DEBUG ChildProcessProxy Disposing of worker process 87581
+23:49:24 (87580) DEBUG ChildProcessProxy Kill 87581
+23:49:25 (87580) DEBUG TemporaryDirectory Deleting stryker temp directory /Users/marco/w/marco-souza/pi-browser-bridge/chrome-extension/.stryker-tmp/sandbox-VXCBOR

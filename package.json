@@ -13,13 +13,26 @@
     "lint": "biome lint .",
     "lint:fix": "biome lint --write .",
     "format": "biome format --write .",
-    "fix": "biome check --write ."
+    "fix": "biome check --write .",
+    "test": "bun test protocol pi-extension",
+    "test:watch": "bun test --watch protocol pi-extension",
+    "test:vitest": "vitest run",
+    "test:vitest:watch": "vitest",
+    "test:mutation": "bun run --filter @pi-browser-bridge/chrome-extension test:mutation",
+    "test:mutation:dry": "bun run --filter @pi-browser-bridge/chrome-extension test:mutation:dry",
+    "benchmark": "bun run --filter @pi-browser-bridge/pi-extension benchmark"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.4.14",
     "@pi-browser-bridge/logger": "workspace:*",
+    "@stryker-mutator/core": "^9.6.1",
+    "@stryker-mutator/vitest-runner": "^9.6.1",
     "@types/bun": "^1.3.13",
-    "@types/chrome": "^0.1.40"
+    "@types/chrome": "^0.1.40",
+    "@vitest/coverage-v8": "^4.1.5",
+    "@vitest/runner": "^4.1.5",
+    "happy-dom": "^20.9.0",
+    "vitest": "^4.1.5"
   },
   "peerDependencies": {
     "typescript": "^6.0.3"

@@ -13,10 +13,12 @@
     "@pi-browser-bridge/protocol": "workspace:*",
     "hono": "^4.12.16",
     "typebox": "^1.1.37",
-    "ws": "^8.20.0"
+    "ws": "^8.20.0",
+    "zod": "^4.4.2"
   },
   "scripts": {
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "benchmark": "bun run src/__tests__/benchmarks/websocket-relay.bench.ts"
   },
   "devDependencies": {
     "@types/node": "^25.6.0",

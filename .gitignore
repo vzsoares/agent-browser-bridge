@@ -13,6 +13,10 @@ chrome-extension/dist/
 coverage
 *.lcov
 
+# mutation testing reports
+reports/
+.cache/stryker-incremental.json
+
 # logs
 logs
 _.log
@@ -35,3 +39,7 @@ report.[0-9]_.[0-9]_.[0-9]_.[0-9]_.json
 
 # Finder (MacOS) folder config
 .DS_Store
+
+# Tasks
+tasks.json
+tasks/

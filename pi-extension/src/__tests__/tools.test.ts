@@ -10,19 +10,12 @@
  */
 
 import { describe, test, expect, beforeEach, afterEach } from "bun:test";
-import {
-  browserNavigate,
-  browserClick,
-  browserType,
-  browserRead,
-  browserScreenshot,
-  BROWSER_NAVIGATE_SCHEMA,
-  BROWSER_CLICK_SCHEMA,
-  BROWSER_TYPE_SCHEMA,
-  BROWSER_READ_SCHEMA,
-  BROWSER_SCREENSHOT_SCHEMA,
-} from "../index.js";
-import { start, stop } from "../server.js";
+import { browserNavigate, BROWSER_NAVIGATE_SCHEMA } from "../tools/browser-navigate.js";
+import { browserClick, BROWSER_CLICK_SCHEMA } from "../tools/browser-click.js";
+import { browserType, BROWSER_TYPE_SCHEMA } from "../tools/browser-type.js";
+import { browserRead, BROWSER_READ_SCHEMA } from "../tools/browser-read.js";
+import { browserScreenshot, BROWSER_SCREENSHOT_SCHEMA } from "../tools/browser-screenshot.js";
+import { start, stop } from "../infrastructure/ws-server.js";
 
 // ── Integration helpers ────────────────────────────────────────────────────
 

@@ -11,7 +11,7 @@
  */
 
 import { describe, test, expect, beforeEach, afterEach } from "bun:test";
-import { start, stop, send, onResponse } from "../server.js";
+import { start, stop, send, onResponse } from "../infrastructure/ws-server.js";
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
