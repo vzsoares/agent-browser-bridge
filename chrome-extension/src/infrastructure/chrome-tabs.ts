@@ -283,8 +283,8 @@ export async function forwardToContentScript(
 			) {
 				const resp = response as {
 					id: string;
-					result?: Record<string, unknown>;
-					error?: { code: string; message: string; suggestion?: string };
+					result?: { tabId: number } & Record<string, unknown>;
+					error?: { code: string; message: string; suggestion?: string; tabId?: number };
 				};
 				// Error responses pass through unchanged.
 				if (resp.error) {
@@ -292,7 +292,7 @@ export async function forwardToContentScript(
 				}
 				// Inject tabId into the result payload.
 				if (resp.result && typeof resp.result === "object") {
-					return { ...resp, result: { tabId, ...resp.result } };
+					return { ...resp, result: { tabId, ...(resp.result as Record<string, unknown>) } };
 				}
 				return { ...resp, result: { tabId } };
 			}

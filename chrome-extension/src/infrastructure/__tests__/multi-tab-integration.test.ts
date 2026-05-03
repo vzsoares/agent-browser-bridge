@@ -63,7 +63,7 @@ function getSentResponse(
   const calls = sendMock.mock.calls;
   if (calls.length <= callIndex) return null;
   try {
-    return JSON.parse(calls[callIndex][0] as string) as Response;
+    return JSON.parse(calls[callIndex]?.[0] as string) as Response;
   } catch {
     return null;
   }
@@ -86,9 +86,9 @@ function getAllSentResponses(wsClient: WebSocketClient): Response[] {
 
 beforeEach(() => {
   const g = globalThis as Record<string, unknown>;
-  g.chrome = g.chrome ?? {};
-  g.chrome.tabs = chromeTabsMock;
-  g.chrome.storage = { local: chromeStorageMock };
+  const chrome = (g.chrome = g.chrome ?? {}) as Record<string, unknown>;
+  chrome.tabs = chromeTabsMock;
+  chrome.storage = { local: chromeStorageMock };
 
   chromeTabsMock.reset();
   chromeStorageMock.reset();
@@ -140,6 +140,8 @@ describe("Multi-tab integration — tab routing", () => {
       activeTabId: { current: 1 },
       handleNavigate: vi.fn(),
       handleScreenshot: vi.fn(),
+      handleListTabs: vi.fn(),
+      handleCloseTab: vi.fn(),
     });
 
     // Send a click action targeting tab 2
@@ -182,6 +184,8 @@ describe("Multi-tab integration — tab routing", () => {
       activeTabId,
       handleNavigate: vi.fn(),
       handleScreenshot: vi.fn(),
+      handleListTabs: vi.fn(),
+      handleCloseTab: vi.fn(),
     });
 
     await handleMessage(
@@ -254,6 +258,8 @@ describe("Multi-tab integration — navigate creates new tab", () => {
       activeTabId,
       handleNavigate,
       handleScreenshot: vi.fn(),
+      handleListTabs: vi.fn(),
+      handleCloseTab: vi.fn(),
     });
 
     await handleMessage(
@@ -267,9 +273,9 @@ describe("Multi-tab integration — navigate creates new tab", () => {
     // A new tab should have been created
     const resp = getSentResponse(wsClient);
     expect(resp?.result).toBeDefined();
-    expect(resp?.result?.tabId).toBeDefined();
+    expect((resp?.result as Record<string, unknown>)?.tabId).toBeDefined();
     // The new tab should NOT be the original active tab (1)
-    expect(resp?.result?.tabId).not.toBe(1);
+    expect((resp?.result as Record<string, unknown>)?.tabId).not.toBe(1);
     expect(handleNavigate).toHaveBeenCalled();
   });
 
@@ -314,6 +320,8 @@ describe("Multi-tab integration — navigate creates new tab", () => {
       activeTabId,
       handleNavigate,
       handleScreenshot: vi.fn(),
+      handleListTabs: vi.fn(),
+      handleCloseTab: vi.fn(),
     });
 
     await handleMessage(
@@ -326,7 +334,7 @@ describe("Multi-tab integration — navigate creates new tab", () => {
 
     const resp = getSentResponse(wsClient);
     expect(resp?.result).toBeDefined();
-    expect(resp?.result?.tabId).toBe(2);
+    expect((resp?.result as Record<string, unknown>)?.tabId).toBe(2);
   });
 
   test("navigate with non-existent tabId returns TAB_NOT_FOUND", async () => {
@@ -359,6 +367,8 @@ describe("Multi-tab integration — navigate creates new tab", () => {
       activeTabId: { current: 1 },
       handleNavigate,
       handleScreenshot: vi.fn(),
+      handleListTabs: vi.fn(),
+      handleCloseTab: vi.fn(),
     });
 
     await handleMessage(
@@ -383,8 +393,8 @@ describe("Multi-tab integration — TAB_NOT_FOUND for closed tabs", () => {
   test("forwardToContentScript returns TAB_NOT_FOUND when tab is closed", async () => {
     const sendMock = vi.fn();
     const g = globalThis as Record<string, unknown>;
-    g.chrome = g.chrome ?? {};
-    g.chrome.tabs = { ...chromeTabsMock, sendMessage: sendMock };
+    const chrome = (g.chrome = g.chrome ?? {}) as Record<string, unknown>;
+    chrome.tabs = { ...chromeTabsMock, sendMessage: sendMock };
 
     // Mark the tab as injected so ensureContentScript skips the ping
     markInjected(5);
@@ -471,6 +481,8 @@ describe("Multi-tab integration — simultaneous multi-tab control", () => {
       activeTabId: { current: 1 },
       handleNavigate: vi.fn(),
       handleScreenshot: vi.fn(),
+      handleListTabs: vi.fn(),
+      handleCloseTab: vi.fn(),
     });
 
     // Request 2: action on tab 2 (different activeTabId)
@@ -483,6 +495,8 @@ describe("Multi-tab integration — simultaneous multi-tab control", () => {
       activeTabId: { current: 2 },
       handleNavigate: vi.fn(),
       handleScreenshot: vi.fn(),
+      handleListTabs: vi.fn(),
+      handleCloseTab: vi.fn(),
     });
 
     // Execute concurrently
@@ -536,6 +550,8 @@ describe("Multi-tab integration — simultaneous multi-tab control", () => {
       activeTabId: { current: 1 },
       handleNavigate,
       handleScreenshot: vi.fn(),
+      handleListTabs: vi.fn(),
+      handleCloseTab: vi.fn(),
     });
 
     const handleMessage2 = createMessageRouter({
@@ -545,6 +561,8 @@ describe("Multi-tab integration — simultaneous multi-tab control", () => {
       activeTabId: { current: 1 },
       handleNavigate,
       handleScreenshot: vi.fn(),
+      handleListTabs: vi.fn(),
+      handleCloseTab: vi.fn(),
     });
 
     await Promise.all([
@@ -570,8 +588,8 @@ describe("Multi-tab integration — simultaneous multi-tab control", () => {
 
     const resp1 = getSentResponse(wsClient1);
     const resp2 = getSentResponse(wsClient2);
-    expect(resp1?.result?.tabId).toBe(createdTabs[0]);
-    expect(resp2?.result?.tabId).toBe(createdTabs[1]);
+    expect((resp1?.result as Record<string, unknown>)?.tabId).toBe(createdTabs[0]);
+    expect((resp2?.result as Record<string, unknown>)?.tabId).toBe(createdTabs[1]);
   });
 
   test("content script state is tracked independently per tab", async () => {
@@ -714,6 +732,8 @@ describe("Multi-tab integration — allowlist uses resolved tab URL", () => {
       activeTabId: { current: 1 },
       handleNavigate: vi.fn(),
       handleScreenshot: vi.fn(),
+      handleListTabs: vi.fn(),
+      handleCloseTab: vi.fn(),
     });
 
     await handleMessage(
@@ -743,6 +763,8 @@ describe("Multi-tab integration — allowlist uses resolved tab URL", () => {
       activeTabId: { current: 1 },
       handleNavigate: vi.fn(),
       handleScreenshot: vi.fn(),
+      handleListTabs: vi.fn(),
+      handleCloseTab: vi.fn(),
     });
 
     await handleMessage(
@@ -777,6 +799,8 @@ describe("Multi-tab integration — allowlist uses resolved tab URL", () => {
       activeTabId: { current: 1 },
       handleNavigate,
       handleScreenshot: vi.fn(),
+      handleListTabs: vi.fn(),
+      handleCloseTab: vi.fn(),
     });
 
     await handleMessage(
@@ -814,6 +838,8 @@ describe("Multi-tab integration — allowlist uses resolved tab URL", () => {
       activeTabId: { current: 1 },
       handleNavigate: vi.fn(),
       handleScreenshot,
+      handleListTabs: vi.fn(),
+      handleCloseTab: vi.fn(),
     });
 
     await handleMessage(
@@ -852,6 +878,8 @@ describe("Multi-tab integration — single-tab backward compatibility", () => {
       activeTabId: { current: 1 },
       handleNavigate: vi.fn(),
       handleScreenshot: vi.fn(),
+      handleListTabs: vi.fn(),
+      handleCloseTab: vi.fn(),
     });
 
     await handleMessage(
@@ -859,7 +887,7 @@ describe("Multi-tab integration — single-tab backward compatibility", () => {
     );
 
     const resp = getSentResponse(wsClient);
-    expect(resp?.result?.text).toBe("Page content");
+    expect((resp?.result as Record<string, unknown>)?.text).toBe("Page content");
   });
 
   test("navigate without tabId still works in single-tab mode", async () => {
@@ -877,6 +905,8 @@ describe("Multi-tab integration — single-tab backward compatibility", () => {
       activeTabId: { current: 1 },
       handleNavigate,
       handleScreenshot: vi.fn(),
+      handleListTabs: vi.fn(),
+      handleCloseTab: vi.fn(),
     });
 
     await handleMessage(
@@ -888,7 +918,7 @@ describe("Multi-tab integration — single-tab backward compatibility", () => {
     );
 
     const resp = getSentResponse(wsClient);
-    expect(resp?.result?.url).toBe("https://target.com");
+    expect((resp?.result as Record<string, unknown>)?.url).toBe("https://target.com");
     expect(handleNavigate).toHaveBeenCalled();
   });
 
@@ -907,6 +937,8 @@ describe("Multi-tab integration — single-tab backward compatibility", () => {
       activeTabId: { current: 1 },
       handleNavigate: vi.fn(),
       handleScreenshot,
+      handleListTabs: vi.fn(),
+      handleCloseTab: vi.fn(),
     });
 
     await handleMessage(
@@ -918,7 +950,7 @@ describe("Multi-tab integration — single-tab backward compatibility", () => {
     );
 
     const resp = getSentResponse(wsClient);
-    expect(resp?.result?.data).toBe("base64data");
+    expect((resp?.result as Record<string, unknown>)?.data).toBe("base64data");
   });
 
   test("disabled bridge rejects all actions in single-tab mode", async () => {
@@ -931,6 +963,8 @@ describe("Multi-tab integration — single-tab backward compatibility", () => {
       activeTabId: { current: 1 },
       handleNavigate: vi.fn(),
       handleScreenshot: vi.fn(),
+      handleListTabs: vi.fn(),
+      handleCloseTab: vi.fn(),
     });
 
     await handleMessage(

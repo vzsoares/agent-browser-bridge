@@ -29,7 +29,7 @@ function makeReq(id = "test-1", action = "click"): { id: string; action: string;
  * Returns the mock so tests can set behavior.
  */
 function mockSendMessage() {
-  const mock = vi.fn<[number, unknown], Promise<unknown>>();
+  const mock = vi.fn<(tabId: number, message: unknown) => Promise<unknown>>();
   // The infrastructure accesses chrome.tabs.sendMessage which is set up
   // by the global chrome mock from our test setup.
   // Here we replace it directly on the chrome global.

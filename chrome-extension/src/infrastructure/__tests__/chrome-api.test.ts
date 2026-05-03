@@ -79,6 +79,7 @@ beforeEach(() => {
 
   // chrome.tabs.onActivated
   (g.chrome as Record<string, unknown>).tabs = {
+    // @ts-expect-error spread on Record<string, unknown>
     ...(g.chrome as Record<string, unknown>).tabs,
     onActivated: {
       addListener: vi.fn(),
@@ -98,6 +99,7 @@ beforeEach(() => {
 
   // chrome.storage.onChanged
   (g.chrome as Record<string, unknown>).storage = {
+    // @ts-expect-error spread on Record<string, unknown>
     ...(g.chrome as Record<string, unknown>).storage,
     onChanged: {
       addListener: vi.fn(),
@@ -107,6 +109,7 @@ beforeEach(() => {
 
   // chrome.runtime.onInstalled
   (g.chrome as Record<string, unknown>).runtime = {
+    // @ts-expect-error spread on Record<string, unknown>
     ...(g.chrome as Record<string, unknown>).runtime,
     onInstalled: {
       addListener: vi.fn(),
@@ -202,7 +205,7 @@ describe("chrome-runtime — onTabActivated", () => {
     onTabActivated(callback);
 
     // Simulate tab activation
-    capturedListener?.({ tabId: 42, windowId: 1 });
+    if (capturedListener) (capturedListener as Function)({ tabId: 42, windowId: 1 });
     expect(callback).toHaveBeenCalledWith(42);
   });
 });
@@ -221,7 +224,7 @@ describe("chrome-runtime — onTabRemoved", () => {
 
   test("fires callback when tab is removed", () => {
     const tabs = (globalThis as any).chrome.tabs;
-    let capturedListener: ((tabId: number) => void) | null = null;
+    let capturedListener: ((tabId: number) => void) | undefined;
 
     tabs.onRemoved.addListener.mockImplementation(
       (listener: (tabId: number) => void) => {
@@ -232,7 +235,7 @@ describe("chrome-runtime — onTabRemoved", () => {
     const callback = vi.fn();
     onTabRemoved(callback);
 
-    capturedListener?.(42);
+    if (capturedListener) (capturedListener as Function)(42);
     expect(callback).toHaveBeenCalledWith(42);
   });
 });
@@ -263,7 +266,7 @@ describe("chrome-runtime — onStorageKeyChanged", () => {
     onStorageKeyChanged("testKey", callback);
 
     // Simulate a storage change on the matching key
-    capturedListener?.(
+    if (capturedListener) (capturedListener as Function)(
       {
         testKey: { newValue: "new", oldValue: "old" },
         otherKey: { newValue: "ignored" },
@@ -288,7 +291,7 @@ describe("chrome-runtime — onStorageKeyChanged", () => {
     onStorageKeyChanged("testKey", callback);
 
     // Simulate a change in "sync" area (not "local")
-    capturedListener?.(
+    if (capturedListener) (capturedListener as Function)(
       { testKey: { newValue: "new" } },
       "sync",
     );
@@ -310,7 +313,7 @@ describe("chrome-runtime — onStorageKeyChanged", () => {
     onStorageKeyChanged("testKey", callback);
 
     // Simulate a change on a different key
-    capturedListener?.(
+    if (capturedListener) (capturedListener as Function)(
       { otherKey: { newValue: "data" } },
       "local",
     );
@@ -399,7 +402,7 @@ describe("chrome-tabs — getActiveTabUrl", () => {
 
 describe("chrome-tabs — getTab", () => {
   test("returns tab descriptor when tab exists", async () => {
-    const mockTab: chrome.tabs.Tab = {
+    const mockTab = {
       id: 1,
       index: 0,
       windowId: 1,
@@ -408,7 +411,7 @@ describe("chrome-tabs — getTab", () => {
       active: true,
       pinned: false,
       status: "complete",
-    };
+    } as chrome.tabs.Tab;
     (globalThis as any).chrome.tabs.get.mockResolvedValue(mockTab);
 
     const result = await getTab(1);
@@ -427,12 +430,12 @@ describe("chrome-tabs — getTab", () => {
 
 describe("chrome-tabs — updateTab", () => {
   test("navigates tab to given URL", async () => {
-    const mockTab: chrome.tabs.Tab = {
+    const mockTab = {
       id: 1,
       index: 0,
       windowId: 1,
       url: "https://new-url.com",
-    };
+    } as chrome.tabs.Tab;
     (globalThis as any).chrome.tabs.update.mockResolvedValue(mockTab);
 
     const result = await updateTab(1, "https://new-url.com");
@@ -482,9 +485,9 @@ describe("chrome-tabs — captureVisibleTab", () => {
 describe("chrome-tabs — executeScriptInTab", () => {
   test("calls chrome.scripting.executeScript with correct target", async () => {
     const scripting = (globalThis as any).chrome.scripting;
-    const mockResult: chrome.scripting.InjectionResult<string>[] = [
+    const mockResult = [
       { frameId: 0, result: "hello" },
-    ];
+    ] as chrome.scripting.InjectionResult<string>[];
     scripting.executeScript.mockResolvedValue(mockResult);
 
     const result = await executeScriptInTab(1, () => "hello");
@@ -712,7 +715,7 @@ describe("chrome-tabs — waitForTabComplete", () => {
     const promise = waitForTabComplete(5, 5000);
 
     // Simulate tab completing
-    capturedListener?.(5, { status: "complete" });
+    if (capturedListener) (capturedListener as Function)(5, { status: "complete" });
 
     await expect(promise).resolves.toBeUndefined();
     vi.useRealTimers();

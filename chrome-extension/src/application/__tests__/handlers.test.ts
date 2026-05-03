@@ -13,6 +13,16 @@
 
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import type { ErrorResponse } from "@pi-browser-bridge/protocol";
+import type {
+  ClickSuccessResult,
+  ClickErrorResult,
+  TypeSuccessResult,
+  TypeErrorResultData,
+  WaitForElementSuccess,
+  WaitForElementError,
+  WaitForTextSuccess,
+  WaitForTextError,
+} from "../types.js";
 
 import { handleClick } from "../handle-click.js";
 import { handleType } from "../handle-type.js";
@@ -24,6 +34,12 @@ import { handleWaitForElement } from "../handle-wait-for-element.js";
 import { handleWaitForText } from "../handle-wait-for-text.js";
 
 // ── Helpers ──────────────────────────────────────────────────────────────
+
+/** Cast any result to a dict for property access in tests. */
+// biome-ignore lint/suspicious/noExplicitAny: test helper
+function asDict(v: any): Record<string, unknown> {
+  return v as Record<string, unknown>;
+}
 
 /** Check if a value is an ErrorResponse. */
 function isErrorResponse(v: unknown): v is ErrorResponse {
@@ -76,10 +92,11 @@ describe("handleClick", () => {
     await vi.advanceTimersByTimeAsync(300);
 
     const result = await promise;
-    expect(result.clicked).toBe(true);
-    expect(result.selector).toBe("#btn");
-    expect(result.text).toBe("Click Me");
-    expect(result.navigated).toBe(false);
+    const s = result as ClickSuccessResult;
+    expect(s.clicked).toBe(true);
+    expect(s.selector).toBe("#btn");
+    expect(s.text).toBe("Click Me");
+    expect(s.navigated).toBe(false);
   });
 
   test("returns error for non-existent selector", async () => {
@@ -87,9 +104,10 @@ describe("handleClick", () => {
     await vi.advanceTimersByTimeAsync(100);
 
     const result = await promise;
-    expect(result.clicked).toBe(false);
-    expect(result.code).toBe("ELEMENT_NOT_FOUND");
-    expect(result.message).toContain("#missing");
+    const e = result as ClickErrorResult;
+    expect(e.clicked).toBe(false);
+    expect(e.code).toBe("ELEMENT_NOT_FOUND");
+    expect(e.message).toContain("#missing");
   });
 
   test("returns error for null params (error propagation)", async () => {
@@ -97,8 +115,9 @@ describe("handleClick", () => {
     await vi.advanceTimersByTimeAsync(0);
 
     const result = await promise;
-    expect(result.clicked).toBe(false);
-    expect(result.code).toBe("ELEMENT_NOT_FOUND");
+    const e = result as ClickErrorResult;
+    expect(e.clicked).toBe(false);
+    expect(e.code).toBe("ELEMENT_NOT_FOUND");
   });
 
   test("returns error for disabled element", async () => {
@@ -110,8 +129,9 @@ describe("handleClick", () => {
     await vi.advanceTimersByTimeAsync(0);
 
     const result = await promise;
-    expect(result.clicked).toBe(false);
-    expect(result.code).toBe("ELEMENT_NOT_INTERACTABLE");
+    const e = result as ClickErrorResult;
+    expect(e.clicked).toBe(false);
+    expect(e.code).toBe("ELEMENT_NOT_INTERACTABLE");
   });
 
   test("detects navigation after click", async () => {
@@ -126,9 +146,10 @@ describe("handleClick", () => {
     await vi.advanceTimersByTimeAsync(300);
 
     const result = await promise;
-    expect(result.clicked).toBe(true);
-    expect(result.navigated).toBe(true);
-    expect(result.newUrl).toContain("navigated.example.com");
+    const s = result as ClickSuccessResult;
+    expect(s.clicked).toBe(true);
+    expect(s.navigated).toBe(true);
+    expect(s.newUrl).toContain("navigated.example.com");
   });
 });
 
@@ -150,9 +171,10 @@ describe("handleType", () => {
     await vi.advanceTimersByTimeAsync(0);
 
     const result = await promise;
-    expect(result.typed).toBe(true);
-    expect(result.selector).toBe("#name");
-    expect(result.value).toBe("John");
+    const s = result as TypeSuccessResult;
+    expect(s.typed).toBe(true);
+    expect(s.selector).toBe("#name");
+    expect(s.value).toBe("John");
   });
 
   test("returns error for non-typable element", async () => {
@@ -161,9 +183,10 @@ describe("handleType", () => {
     await vi.advanceTimersByTimeAsync(0);
 
     const result = await promise;
-    expect(result.typed).toBe(false);
-    expect(result.error).toBe("ELEMENT_NOT_TYPABLE");
-    expect(result.tag).toBe("div");
+    const e = result as TypeErrorResultData;
+    expect(e.typed).toBe(false);
+    expect(e.error).toBe("ELEMENT_NOT_TYPABLE");
+    expect(e.tag).toBe("div");
   });
 
   test("returns error for null params (error propagation)", async () => {
@@ -171,8 +194,9 @@ describe("handleType", () => {
     await vi.advanceTimersByTimeAsync(0);
 
     const result = await promise;
-    expect(result.typed).toBe(false);
-    expect(result.error).toBe("ELEMENT_NOT_FOUND");
+    const e = result as TypeErrorResultData;
+    expect(e.typed).toBe(false);
+    expect(e.error).toBe("ELEMENT_NOT_FOUND");
   });
 
   test("returns error for disabled input", async () => {
@@ -181,8 +205,9 @@ describe("handleType", () => {
     await vi.advanceTimersByTimeAsync(0);
 
     const result = await promise;
-    expect(result.typed).toBe(false);
-    expect(result.error).toBe("ELEMENT_NOT_INTERACTABLE");
+    const e = result as TypeErrorResultData;
+    expect(e.typed).toBe(false);
+    expect(e.error).toBe("ELEMENT_NOT_INTERACTABLE");
   });
 
   test("returns error for read-only input", async () => {
@@ -191,8 +216,9 @@ describe("handleType", () => {
     await vi.advanceTimersByTimeAsync(0);
 
     const result = await promise;
-    expect(result.typed).toBe(false);
-    expect(result.error).toBe("ELEMENT_NOT_INTERACTABLE");
+    const e = result as TypeErrorResultData;
+    expect(e.typed).toBe(false);
+    expect(e.error).toBe("ELEMENT_NOT_INTERACTABLE");
   });
 });
 
@@ -240,7 +266,7 @@ describe("handleNavigate", () => {
     expect(typeof result).toBe("object");
     expect(result).not.toBeNull();
 
-    const r = result as Record<string, unknown>;
+    const r = asDict(result);
     // Cross-page navigation returns { status: "navigating", url: "..." }
     if (r.status === "navigating") {
       // happy-dom normalizes URLs with trailing slashes
@@ -274,7 +300,7 @@ describe("handleRead", () => {
   test("returns empty text for empty body", async () => {
     const result = await handleRead({});
     expect(isErrorResponse(result)).toBe(false);
-    const r = result as Record<string, unknown>;
+    const r = asDict(result);
     expect(r.text).toBe("");
     expect(r.length).toBe(0);
     expect(r.truncated).toBe(false);
@@ -284,7 +310,7 @@ describe("handleRead", () => {
     document.body.innerHTML = "<div>Hello World</div>";
     const result = await handleRead({});
     expect(isErrorResponse(result)).toBe(false);
-    const r = result as Record<string, unknown>;
+    const r = asDict(result);
     expect(r.text).toContain("Hello World");
   });
 
@@ -293,7 +319,7 @@ describe("handleRead", () => {
       '<div id="a">Content A</div><div id="b">Content B</div>';
     const result = await handleRead({ selector: "#a" });
     expect(isErrorResponse(result)).toBe(false);
-    const r = result as Record<string, unknown>;
+    const r = asDict(result);
     expect(r.text).toContain("Content A");
     expect(r.text).not.toContain("Content B");
   });
@@ -323,7 +349,7 @@ describe("handleRead", () => {
       '<span>abcdefgh</span><span>ijklmnop</span><span>qrstuv</span>';
     const result = await handleRead({ maxLength: 10 });
     expect(isErrorResponse(result)).toBe(false);
-    const r = result as Record<string, unknown>;
+    const r = asDict(result);
     expect(r.truncated).toBe(true);
   });
 
@@ -331,7 +357,7 @@ describe("handleRead", () => {
     document.body.innerHTML = "<div>short</div>";
     const result = await handleRead({});
     expect(isErrorResponse(result)).toBe(false);
-    const r = result as Record<string, unknown>;
+    const r = asDict(result);
     expect(r.truncated).toBe(false);
   });
 
@@ -357,7 +383,7 @@ describe("handleRead", () => {
 
     const result = await handleRead({}, mockDoc);
     expect(isErrorResponse(result)).toBe(false);
-    const r = result as Record<string, unknown>;
+    const r = asDict(result);
     expect(r.text).toContain("Injected Text");
   });
 });
@@ -423,9 +449,10 @@ describe("handleScreenshot", () => {
       fakeDeps,
     );
     expect(result.result).toBeDefined();
-    expect(result.result?.tabId).toBe(1);
-    expect(result.result?.data).toBe("abc123");
-    expect(result.result?.format).toBe("png");
+    const res = result.result as Record<string, unknown>;
+    expect(res.tabId).toBe(1);
+    expect(res.data).toBe("abc123");
+    expect(res.format).toBe("png");
     expect(fakeDeps.captureVisibleTab).toHaveBeenCalledWith("png", undefined);
   });
 
@@ -441,8 +468,9 @@ describe("handleScreenshot", () => {
       fakeDeps,
     );
     expect(result.result).toBeDefined();
-    expect(result.result?.tabId).toBe(1);
-    expect(result.result?.format).toBe("jpeg");
+    const res = result.result as Record<string, unknown>;
+    expect(res.tabId).toBe(1);
+    expect(res.format).toBe("jpeg");
     expect(fakeDeps.captureVisibleTab).toHaveBeenCalledWith("jpeg", 50);
   });
 
@@ -503,9 +531,10 @@ describe("handleScreenshot", () => {
       fakeDeps,
     );
     expect(result.result).toBeDefined();
-    expect(result.result?.tabId).toBe(1);
-    expect(result.result?.warning).toBeDefined();
-    expect(result.result?.warning).toContain("viewport-only");
+    const res = result.result as Record<string, unknown>;
+    expect(res.tabId).toBe(1);
+    expect(res.warning).toBeDefined();
+    expect(res.warning).toContain("viewport-only");
   });
 
   test("no warning when fullPage is false", async () => {
@@ -520,8 +549,9 @@ describe("handleScreenshot", () => {
       fakeDeps,
     );
     expect(result.result).toBeDefined();
-    expect(result.result?.tabId).toBe(1);
-    expect(result.result?.warning).toBeUndefined();
+    const res = result.result as Record<string, unknown>;
+    expect(res.tabId).toBe(1);
+    expect(res.warning).toBeUndefined();
   });
 
   test("accepts null params gracefully (uses defaults)", async () => {
@@ -532,7 +562,8 @@ describe("handleScreenshot", () => {
 
     const result = await handleScreenshot("req-11", null, fakeDeps);
     expect(result.result).toBeDefined();
-    expect(result.result?.tabId).toBe(1);
+    const res = result.result as Record<string, unknown>;
+    expect(res.tabId).toBe(1);
     expect(fakeDeps.captureVisibleTab).toHaveBeenCalledWith("png", undefined);
   });
 
@@ -548,7 +579,8 @@ describe("handleScreenshot", () => {
       fakeDeps,
     );
     expect(result.result).toBeDefined();
-    expect(result.result?.tabId).toBe(1);
+    const res = result.result as Record<string, unknown>;
+    expect(res.tabId).toBe(1);
     expect(fakeDeps.captureVisibleTab).toHaveBeenCalled();
   });
 
@@ -617,7 +649,7 @@ describe("handleExec", () => {
   test("executes simple arithmetic and returns serialized result", async () => {
     const result = await handleExec({ code: "2 + 3" });
     expect(isErrorResponse(result)).toBe(false);
-    const r = result as Record<string, unknown>;
+    const r = asDict(result);
     expect(r.value).toBe(5);
     expect(r.serialized).toBe("5");
   });
@@ -625,7 +657,7 @@ describe("handleExec", () => {
   test("executes string expression", async () => {
     const result = await handleExec({ code: "'hello' + ' world'" });
     expect(isErrorResponse(result)).toBe(false);
-    const r = result as Record<string, unknown>;
+    const r = asDict(result);
     expect(r.value).toBe("hello world");
     expect(r.serialized).toBe("hello world");
   });
@@ -633,7 +665,7 @@ describe("handleExec", () => {
   test("executes object expression and serializes as JSON", async () => {
     const result = await handleExec({ code: "({a: 1, b: 2})" });
     expect(isErrorResponse(result)).toBe(false);
-    const r = result as Record<string, unknown>;
+    const r = asDict(result);
     expect(r.value).toEqual({ a: 1, b: 2 });
     expect(typeof r.serialized).toBe("string");
     // Should be JSON
@@ -674,14 +706,14 @@ describe("handleExec", () => {
     const result = await handleExec({ code: "throw new Error('boom')" });
     // The handler catches sync errors and returns them in serialized
     expect(isErrorResponse(result)).toBe(false);
-    const r = result as Record<string, unknown>;
+    const r = asDict(result);
     expect(r.serialized).toContain("Error");
   });
 
   test("serializes undefined as string", async () => {
     const result = await handleExec({ code: "undefined" });
     expect(isErrorResponse(result)).toBe(false);
-    const r = result as Record<string, unknown>;
+    const r = asDict(result);
     expect(r.value).toBeUndefined();
     expect(r.serialized).toBe("undefined");
   });
@@ -689,7 +721,7 @@ describe("handleExec", () => {
   test("serializes null as string", async () => {
     const result = await handleExec({ code: "null" });
     expect(isErrorResponse(result)).toBe(false);
-    const r = result as Record<string, unknown>;
+    const r = asDict(result);
     expect(r.value).toBeNull();
     expect(r.serialized).toBe("null");
   });
@@ -697,7 +729,7 @@ describe("handleExec", () => {
   test("serializes boolean values", async () => {
     const result = await handleExec({ code: "true" });
     expect(isErrorResponse(result)).toBe(false);
-    const r = result as Record<string, unknown>;
+    const r = asDict(result);
     expect(r.value).toBe(true);
     expect(r.serialized).toBe("true");
   });
@@ -709,37 +741,42 @@ describe("handleWaitForElement", () => {
   test("returns success when element exists immediately", async () => {
     document.body.innerHTML = '<div id="target"></div>';
     const result = await handleWaitForElement({ selector: "#target", timeout: 100 });
-    expect(result.found).toBe(true);
-    expect(result.selector).toBe("#target");
-    expect(result.tagName).toBe("div");
-    expect(typeof result.elapsedMs).toBe("number");
+    const s = result as WaitForElementSuccess;
+    expect(s.found).toBe(true);
+    expect(s.selector).toBe("#target");
+    expect(s.tagName).toBe("div");
+    expect(typeof s.elapsedMs).toBe("number");
   });
 
   test("returns error when element not found within timeout", async () => {
     const result = await handleWaitForElement({ selector: "#missing", timeout: 50 });
-    expect(result.found).toBe(false);
-    expect(result.selector).toBe("#missing");
-    expect(result.error).toBe("TIMEOUT");
-    expect(result.message).toContain("#missing");
+    const e = result as WaitForElementError;
+    expect(e.found).toBe(false);
+    expect(e.selector).toBe("#missing");
+    expect(e.error).toBe("TIMEOUT");
+    expect(e.message).toContain("#missing");
   });
 
   test("returns error for missing selector parameter", async () => {
     const result = await handleWaitForElement({ timeout: 100 });
-    expect(result.found).toBe(false);
-    expect(result.error).toBe("ELEMENT_NOT_FOUND");
-    expect(result.message).toContain("selector");
+    const e = result as WaitForElementError;
+    expect(e.found).toBe(false);
+    expect(e.error).toBe("ELEMENT_NOT_FOUND");
+    expect(e.message).toContain("selector");
   });
 
   test("returns error for empty selector", async () => {
     const result = await handleWaitForElement({ selector: "" });
-    expect(result.found).toBe(false);
-    expect(result.error).toBe("ELEMENT_NOT_FOUND");
+    const e = result as WaitForElementError;
+    expect(e.found).toBe(false);
+    expect(e.error).toBe("ELEMENT_NOT_FOUND");
   });
 
   test("returns error for null params", async () => {
     const result = await handleWaitForElement(null);
-    expect(result.found).toBe(false);
-    expect(result.error).toBe("ELEMENT_NOT_FOUND");
+    const e = result as WaitForElementError;
+    expect(e.found).toBe(false);
+    expect(e.error).toBe("ELEMENT_NOT_FOUND");
   });
 
   test("defaults timeout to 10000ms", async () => {
@@ -749,8 +786,9 @@ describe("handleWaitForElement", () => {
     const result = await promise;
     vi.useRealTimers();
 
-    expect(result.found).toBe(false);
-    expect(result.elapsedMs).toBe(10000);
+    const e = result as WaitForElementError;
+    expect(e.found).toBe(false);
+    expect(e.elapsedMs).toBe(10000);
   });
 
   test("detects dynamically added element", async () => {
@@ -765,9 +803,10 @@ describe("handleWaitForElement", () => {
     }, 50);
 
     const result = await promise;
-    expect(result.found).toBe(true);
-    expect(result.tagName).toBe("div");
-    expect(result.elapsedMs).toBeLessThan(200);
+    const s = result as WaitForElementSuccess;
+    expect(s.found).toBe(true);
+    expect(s.tagName).toBe("div");
+    expect(s.elapsedMs).toBeLessThan(200);
   });
 });
 
@@ -777,16 +816,18 @@ describe("handleWaitForText", () => {
   test("returns success when text exists immediately", async () => {
     document.body.innerHTML = "<div>Hello World</div>";
     const result = await handleWaitForText({ text: "Hello", timeout: 100 });
-    expect(result.found).toBe(true);
-    expect(result.text).toBe("Hello");
-    expect(typeof result.elapsedMs).toBe("number");
+    const s = result as WaitForTextSuccess;
+    expect(s.found).toBe(true);
+    expect(s.text).toBe("Hello");
+    expect(typeof s.elapsedMs).toBe("number");
   });
 
   test("returns error when text not found within timeout", async () => {
     const result = await handleWaitForText({ text: "nonexistent text", timeout: 50 });
-    expect(result.found).toBe(false);
-    expect(result.error).toBe("TIMEOUT");
-    expect(result.text).toBe("nonexistent text");
+    const e = result as WaitForTextError;
+    expect(e.found).toBe(false);
+    expect(e.error).toBe("TIMEOUT");
+    expect(e.text).toBe("nonexistent text");
   });
 
   test("scopes search to CSS selector", async () => {
@@ -795,31 +836,36 @@ describe("handleWaitForText", () => {
 
     // Without scope, waits for "World" to appear anywhere
     const result1 = await handleWaitForText({ text: "World", timeout: 100 });
-    expect(result1.found).toBe(true);
+    const s1 = result1 as WaitForTextSuccess;
+    expect(s1.found).toBe(true);
 
     // With scope #a, "World" is NOT inside #a
     const result2 = await handleWaitForText({ text: "World", scope: "#a", timeout: 50 });
-    expect(result2.found).toBe(false);
-    expect(result2.error).toBe("TIMEOUT");
+    const e2 = result2 as WaitForTextError;
+    expect(e2.found).toBe(false);
+    expect(e2.error).toBe("TIMEOUT");
   });
 
   test("returns error for missing text parameter", async () => {
     const result = await handleWaitForText({ timeout: 100 });
-    expect(result.found).toBe(false);
-    expect(result.error).toBe("TIMEOUT");
-    expect(result.message).toContain("text");
+    const e = result as WaitForTextError;
+    expect(e.found).toBe(false);
+    expect(e.error).toBe("TIMEOUT");
+    expect(e.message).toContain("text");
   });
 
   test("returns error for empty text", async () => {
     const result = await handleWaitForText({ text: "" });
-    expect(result.found).toBe(false);
-    expect(result.error).toBe("TIMEOUT");
+    const e = result as WaitForTextError;
+    expect(e.found).toBe(false);
+    expect(e.error).toBe("TIMEOUT");
   });
 
   test("returns error for null params", async () => {
     const result = await handleWaitForText(null);
-    expect(result.found).toBe(false);
-    expect(result.error).toBe("TIMEOUT");
+    const e = result as WaitForTextError;
+    expect(e.found).toBe(false);
+    expect(e.error).toBe("TIMEOUT");
   });
 
   test("defaults timeout to 10000ms", async () => {
@@ -829,15 +875,17 @@ describe("handleWaitForText", () => {
     const result = await promise;
     vi.useRealTimers();
 
-    expect(result.found).toBe(false);
-    expect(result.elapsedMs).toBe(10000);
+    const e = result as WaitForTextError;
+    expect(e.found).toBe(false);
+    expect(e.elapsedMs).toBe(10000);
   });
 
   test("text matching is case-sensitive", async () => {
     document.body.innerHTML = "<div>Hello World</div>";
     const result = await handleWaitForText({ text: "hello", timeout: 100 });
+    const e = result as WaitForTextError;
     // "hello" (lowercase) != "Hello" (mixed case) — case-sensitive
-    expect(result.found).toBe(false);
+    expect(e.found).toBe(false);
   });
 });
 
@@ -858,8 +906,9 @@ describe("Error propagation — domain errors bubble up correctly", () => {
     await vi.advanceTimersByTimeAsync(100);
 
     const result = await promise;
-    expect(result.clicked).toBe(false);
-    expect(result.code).toBe("ELEMENT_NOT_FOUND");
+    const e = result as ClickErrorResult;
+    expect(e.clicked).toBe(false);
+    expect(e.code).toBe("ELEMENT_NOT_FOUND");
   });
 
   test("handleClick propagates ELEMENT_NOT_INTERACTABLE from domain", async () => {
@@ -871,8 +920,9 @@ describe("Error propagation — domain errors bubble up correctly", () => {
     await vi.advanceTimersByTimeAsync(0);
 
     const result = await promise;
-    expect(result.clicked).toBe(false);
-    expect(result.code).toBe("ELEMENT_NOT_INTERACTABLE");
+    const e = result as ClickErrorResult;
+    expect(e.clicked).toBe(false);
+    expect(e.code).toBe("ELEMENT_NOT_INTERACTABLE");
   });
 
   test("handleType propagates ELEMENT_NOT_FOUND from domain", async () => {
@@ -880,8 +930,9 @@ describe("Error propagation — domain errors bubble up correctly", () => {
     await vi.advanceTimersByTimeAsync(100);
 
     const result = await promise;
-    expect(result.typed).toBe(false);
-    expect(result.error).toBe("ELEMENT_NOT_FOUND");
+    const e = result as TypeErrorResultData;
+    expect(e.typed).toBe(false);
+    expect(e.error).toBe("ELEMENT_NOT_FOUND");
   });
 
   test("handleType propagates ELEMENT_NOT_TYPABLE from domain", async () => {
@@ -890,9 +941,10 @@ describe("Error propagation — domain errors bubble up correctly", () => {
     await vi.advanceTimersByTimeAsync(0);
 
     const result = await promise;
-    expect(result.typed).toBe(false);
-    expect(result.error).toBe("ELEMENT_NOT_TYPABLE");
-    expect(result.tag).toBe("div");
+    const e = result as TypeErrorResultData;
+    expect(e.typed).toBe(false);
+    expect(e.error).toBe("ELEMENT_NOT_TYPABLE");
+    expect(e.tag).toBe("div");
   });
 
   test("handleType propagates ELEMENT_NOT_INTERACTABLE from domain", async () => {
@@ -901,8 +953,9 @@ describe("Error propagation — domain errors bubble up correctly", () => {
     await vi.advanceTimersByTimeAsync(0);
 
     const result = await promise;
-    expect(result.typed).toBe(false);
-    expect(result.error).toBe("ELEMENT_NOT_INTERACTABLE");
+    const e = result as TypeErrorResultData;
+    expect(e.typed).toBe(false);
+    expect(e.error).toBe("ELEMENT_NOT_INTERACTABLE");
   });
 
   test("handleNavigate returns INVALID_URL for domain-level validation failure", async () => {
@@ -931,14 +984,16 @@ describe("Error propagation — domain errors bubble up correctly", () => {
 
   test("handleWaitForElement returns ELEMENT_NOT_FOUND for missing selector", async () => {
     const result = await handleWaitForElement({});
-    expect(result.found).toBe(false);
-    expect(result.error).toBe("ELEMENT_NOT_FOUND");
+    const e = result as WaitForElementError;
+    expect(e.found).toBe(false);
+    expect(e.error).toBe("ELEMENT_NOT_FOUND");
   });
 
   test("handleWaitForText returns TIMEOUT for missing text", async () => {
     const result = await handleWaitForText({});
-    expect(result.found).toBe(false);
-    expect(result.error).toBe("TIMEOUT");
+    const e = result as WaitForTextError;
+    expect(e.found).toBe(false);
+    expect(e.error).toBe("TIMEOUT");
   });
 
   test("handlers never throw — always return a result", async () => {
@@ -976,7 +1031,7 @@ describe("handleExec — serialization edge cases", () => {
   test("serializes arrays", async () => {
     const result = await handleExec({ code: "[1, 2, 3]" });
     expect(isErrorResponse(result)).toBe(false);
-    const r = result as Record<string, unknown>;
+    const r = asDict(result);
     expect(r.value).toEqual([1, 2, 3]);
     expect(typeof r.serialized).toBe("string");
     expect(r.serialized).toContain("1");
@@ -985,14 +1040,14 @@ describe("handleExec — serialization edge cases", () => {
   test("serializes nested objects", async () => {
     const result = await handleExec({ code: "({a: {b: 1}})" });
     expect(isErrorResponse(result)).toBe(false);
-    const r = result as Record<string, unknown>;
+    const r = asDict(result);
     expect(r.value).toEqual({ a: { b: 1 } });
   });
 
   test("handles BigInt values", async () => {
     const result = await handleExec({ code: "BigInt(42)" });
     expect(isErrorResponse(result)).toBe(false);
-    const r = result as Record<string, unknown>;
+    const r = asDict(result);
     expect(typeof r.serialized).toBe("string");
     expect(r.serialized).toContain("42");
   });
@@ -1000,7 +1055,7 @@ describe("handleExec — serialization edge cases", () => {
   test("returns error for code that references undefined variables", async () => {
     const result = await handleExec({ code: "nonexistentVariable" });
     expect(isErrorResponse(result)).toBe(false);
-    const r = result as Record<string, unknown>;
+    const r = asDict(result);
     expect(r.serialized).toContain("Error");
   });
 
@@ -1009,7 +1064,7 @@ describe("handleExec — serialization edge cases", () => {
       code: "Promise.resolve('async result')",
     });
     expect(isErrorResponse(result)).toBe(false);
-    const r = result as Record<string, unknown>;
+    const r = asDict(result);
     expect(r.value).toBe("async result");
     expect(r.serialized).toBe("async result");
   });
@@ -1019,7 +1074,7 @@ describe("handleExec — serialization edge cases", () => {
       code: "Promise.reject(new Error('async fail'))",
     });
     expect(isErrorResponse(result)).toBe(false);
-    const r = result as Record<string, unknown>;
+    const r = asDict(result);
     expect(r.serialized).toContain("Error");
   });
 
@@ -1028,7 +1083,7 @@ describe("handleExec — serialization edge cases", () => {
       code: "(function myFunc() { return 1; })",
     });
     expect(isErrorResponse(result)).toBe(false);
-    const r = result as Record<string, unknown>;
+    const r = asDict(result);
     expect(typeof r.serialized).toBe("string");
     // Functions serialize as "[Function: name]"
     expect(r.serialized).toContain("Function");
@@ -1073,7 +1128,7 @@ describe("handleNavigate — wait and same-page paths", () => {
       waitUntil: "load",
       timeout: 5000,
     });
-    const r = result as Record<string, unknown>;
+    const r = asDict(result);
     if (r.status === "navigating") {
       expect(r.url).toBeDefined();
     }
@@ -1099,7 +1154,7 @@ describe("handleNavigate — wait and same-page paths", () => {
 
     // Should return url and title (same-page success result)
     expect(isErrorResponse(result)).toBe(false);
-    const r = result as Record<string, unknown>;
+    const r = asDict(result);
     expect(r.status).toBeUndefined(); // Not cross-page
     expect(typeof r.url).toBe("string");
     expect(typeof r.title).toBe("string");
@@ -1123,7 +1178,7 @@ describe("handleNavigate — wait and same-page paths", () => {
     vi.useRealTimers();
 
     expect(isErrorResponse(result)).toBe(false);
-    const r = result as Record<string, unknown>;
+    const r = asDict(result);
     expect(typeof r.url).toBe("string");
   });
 
@@ -1145,7 +1200,7 @@ describe("handleNavigate — wait and same-page paths", () => {
     vi.useRealTimers();
 
     expect(isErrorResponse(result)).toBe(false);
-    const r = result as Record<string, unknown>;
+    const r = asDict(result);
     expect(typeof r.url).toBe("string");
   });
 
@@ -1160,7 +1215,7 @@ describe("handleNavigate — wait and same-page paths", () => {
     });
 
     expect(isErrorResponse(result)).toBe(false);
-    const r = result as Record<string, unknown>;
+    const r = asDict(result);
     // Empty hash triggers immediate return in handleSamePageNavigation
     expect(typeof r.url).toBe("string");
   });
@@ -1175,7 +1230,7 @@ describe("handleNavigate — wait and same-page paths", () => {
     });
 
     expect(isErrorResponse(result)).toBe(false);
-    const r = result as Record<string, unknown>;
+    const r = asDict(result);
     expect(typeof r.url).toBe("string");
   });
 });

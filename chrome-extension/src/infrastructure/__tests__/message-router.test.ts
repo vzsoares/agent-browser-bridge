@@ -71,7 +71,7 @@ function getSentResponse(
   const calls = sendMock.mock.calls;
   if (calls.length <= callIndex) return null;
   try {
-    return JSON.parse(calls[callIndex][0] as string) as Response;
+    return JSON.parse(calls[callIndex]?.[0] as string) as Response;
   } catch {
     return null;
   }
@@ -94,9 +94,9 @@ function getAllSentResponses(wsClient: WebSocketClient): Response[] {
 beforeEach(() => {
   // Install mocks on globalThis.chrome
   const g = globalThis as Record<string, unknown>;
-  g.chrome = g.chrome ?? {};
-  g.chrome.tabs = chromeTabsMock;
-  g.chrome.storage = { local: chromeStorageMock };
+  const chrome = (g.chrome = g.chrome ?? {}) as Record<string, unknown>;
+  chrome.tabs = chromeTabsMock;
+  chrome.storage = { local: chromeStorageMock };
 
   chromeTabsMock.reset();
   chromeStorageMock.reset();

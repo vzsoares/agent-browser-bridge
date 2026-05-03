@@ -10,6 +10,7 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { clickHandler, typeHandler } from "../interactions.js";
 import type { TypeParams } from "@pi-browser-bridge/protocol";
+import type { ClickSuccess, ClickError, TypeSuccess, TypeErrorResult } from "../interactions.js";
 
 // ────────────────────────────────────────────────────────────────────────────
 // Helpers
@@ -62,10 +63,11 @@ describe("clickHandler", () => {
 			await vi.advanceTimersByTimeAsync(300);
 
 			const result = await promise;
-			expect(result.clicked).toBe(true);
-			expect(result.selector).toBe("#btn");
-			expect(result.text).toBe("Click Me");
-			expect(result.navigated).toBe(false);
+			const s = result as ClickSuccess;
+			expect(s.clicked).toBe(true);
+			expect(s.selector).toBe("#btn");
+			expect(s.text).toBe("Click Me");
+			expect(s.navigated).toBe(false);
 		});
 
 		test("includes element text in result", async () => {
@@ -79,8 +81,9 @@ describe("clickHandler", () => {
 			await vi.advanceTimersByTimeAsync(300);
 
 			const result = await promise;
-			expect(result.clicked).toBe(true);
-			expect(result.text).toBe("Submit Form");
+			const s = result as ClickSuccess;
+			expect(s.clicked).toBe(true);
+			expect(s.text).toBe("Submit Form");
 		});
 	});
 
@@ -95,9 +98,10 @@ describe("clickHandler", () => {
 			await vi.advanceTimersByTimeAsync(500);
 
 			const result = await promise;
-			expect(result.clicked).toBe(false);
-			expect(result.code).toBe("ELEMENT_NOT_FOUND");
-			expect(result.message).toContain("#nonexistent");
+			const e = result as ClickError;
+			expect(e.clicked).toBe(false);
+			expect(e.code).toBe("ELEMENT_NOT_FOUND");
+			expect(e.message).toContain("#nonexistent");
 		});
 
 		test("returns ELEMENT_NOT_FOUND with text filter suggestions", async () => {
@@ -112,10 +116,11 @@ describe("clickHandler", () => {
 			await vi.advanceTimersByTimeAsync(200);
 
 			const result = await promise;
-			expect(result.clicked).toBe(false);
-			expect(result.code).toBe("ELEMENT_NOT_FOUND");
-			expect(result.message).toContain("text containing");
-			expect(result.suggestions).toEqual(["Alpha", "Beta", "Gamma"]);
+			const e = result as ClickError;
+			expect(e.clicked).toBe(false);
+			expect(e.code).toBe("ELEMENT_NOT_FOUND");
+			expect(e.message).toContain("text containing");
+			expect(e.suggestions).toEqual(["Alpha", "Beta", "Gamma"]);
 		});
 
 		test("returns ELEMENT_NOT_FOUND for invalid params (null)", async () => {
@@ -123,17 +128,19 @@ describe("clickHandler", () => {
 			// Flush microtasks so the async function completes
 			await vi.advanceTimersByTimeAsync(0);
 			const result = await promise;
-			expect(result.clicked).toBe(false);
-			expect(result.code).toBe("ELEMENT_NOT_FOUND");
-			expect(result.message).toContain("Invalid parameters");
+			const e = result as ClickError;
+			expect(e.clicked).toBe(false);
+			expect(e.code).toBe("ELEMENT_NOT_FOUND");
+			expect(e.message).toContain("Invalid parameters");
 		});
 
 		test("returns ELEMENT_NOT_FOUND for missing selector", async () => {
 			const promise = clickHandler({ text: "something" });
 			await vi.advanceTimersByTimeAsync(0);
 			const result = await promise;
-			expect(result.clicked).toBe(false);
-			expect(result.code).toBe("ELEMENT_NOT_FOUND");
+			const e = result as ClickError;
+			expect(e.clicked).toBe(false);
+			expect(e.code).toBe("ELEMENT_NOT_FOUND");
 		});
 	});
 
@@ -148,9 +155,10 @@ describe("clickHandler", () => {
 			await vi.advanceTimersByTimeAsync(0);
 
 			const result = await promise;
-			expect(result.clicked).toBe(false);
-			expect(result.code).toBe("ELEMENT_NOT_INTERACTABLE");
-			expect(result.message).toContain("hidden or disabled");
+			const e = result as ClickError;
+			expect(e.clicked).toBe(false);
+			expect(e.code).toBe("ELEMENT_NOT_INTERACTABLE");
+			expect(e.message).toContain("hidden or disabled");
 		});
 
 		test("returns ELEMENT_NOT_INTERACTABLE for zero-size element", async () => {
@@ -160,8 +168,9 @@ describe("clickHandler", () => {
 			await vi.advanceTimersByTimeAsync(0);
 
 			const result = await promise;
-			expect(result.clicked).toBe(false);
-			expect(result.code).toBe("ELEMENT_NOT_INTERACTABLE");
+			const e = result as ClickError;
+			expect(e.clicked).toBe(false);
+			expect(e.code).toBe("ELEMENT_NOT_INTERACTABLE");
 		});
 	});
 
@@ -182,12 +191,13 @@ describe("clickHandler", () => {
 			await vi.advanceTimersByTimeAsync(300);
 
 			const result = await promise;
-			expect(result.clicked).toBe(true);
-			expect(result.navigated).toBe(true);
+			const s = result as ClickSuccess;
+			expect(s.clicked).toBe(true);
+			expect(s.navigated).toBe(true);
 			// happy-dom normalizes URLs with a trailing slash
-			expect(result.newUrl).toContain("navigated.example.com");
+			expect(s.newUrl).toContain("navigated.example.com");
 			// newTitle comes from document.title after navigation
-			expect(typeof result.newTitle).toBe("string");
+			expect(typeof s.newTitle).toBe("string");
 		});
 
 		test("reports navigated:false when URL stays the same", async () => {
@@ -202,8 +212,9 @@ describe("clickHandler", () => {
 			await vi.advanceTimersByTimeAsync(300);
 
 			const result = await promise;
-			expect(result.clicked).toBe(true);
-			expect(result.navigated).toBe(false);
+			const s = result as ClickSuccess;
+			expect(s.clicked).toBe(true);
+			expect(s.navigated).toBe(false);
 		});
 	});
 });
@@ -243,9 +254,10 @@ describe("typeHandler", () => {
 			await flushMicrotasks();
 			const result = await promise;
 
-			expect(result.typed).toBe(true);
-			expect(result.selector).toBe("#name");
-			expect(result.value).toBe("John Doe");
+			const s = result as TypeSuccess;
+			expect(s.typed).toBe(true);
+			expect(s.selector).toBe("#name");
+			expect(s.value).toBe("John Doe");
 
 			// Verify the DOM was actually mutated
 			const input = document.querySelector("#name") as HTMLInputElement;
@@ -264,8 +276,9 @@ describe("typeHandler", () => {
 			await flushMicrotasks();
 			const result = await promise;
 
-			expect(result.typed).toBe(true);
-			expect(result.value).toBe("new@example.com");
+			const s = result as TypeSuccess;
+			expect(s.typed).toBe(true);
+			expect(s.value).toBe("new@example.com");
 		});
 
 		test("preserves existing value when clear=false", async () => {
@@ -281,9 +294,10 @@ describe("typeHandler", () => {
 			await flushMicrotasks();
 			const result = await promise;
 
-			expect(result.typed).toBe(true);
+			const s = result as TypeSuccess;
+			expect(s.typed).toBe(true);
 			// clear=false means setNativeValue appends (no clear before set)
-			expect(result.value).toBe("suffix");
+			expect(s.value).toBe("suffix");
 		});
 
 		test("dispatches input and change events", async () => {
@@ -319,8 +333,9 @@ describe("typeHandler", () => {
 			await flushMicrotasks();
 			const result = await promise;
 
-			expect(result.typed).toBe(true);
-			expect(result.value).toBe("Multi-line\ncontent");
+			const s = result as TypeSuccess;
+			expect(s.typed).toBe(true);
+			expect(s.value).toBe("Multi-line\ncontent");
 
 			const textarea = document.querySelector(
 				"#bio",
@@ -340,8 +355,9 @@ describe("typeHandler", () => {
 			await flushMicrotasks();
 			const result = await promise;
 
-			expect(result.typed).toBe(true);
-			expect(result.value).toBe("fresh notes");
+			const s = result as TypeSuccess;
+			expect(s.typed).toBe(true);
+			expect(s.value).toBe("fresh notes");
 		});
 	});
 
@@ -358,8 +374,9 @@ describe("typeHandler", () => {
 			await flushMicrotasks();
 			const result = await promise;
 
-			expect(result.typed).toBe(true);
-			expect(result.value).toBe("new content");
+			const s = result as TypeSuccess;
+			expect(s.typed).toBe(true);
+			expect(s.value).toBe("new content");
 
 			const editor = document.querySelector("#editor")!;
 			expect(editor.textContent).toBe("new content");
@@ -377,8 +394,9 @@ describe("typeHandler", () => {
 			await flushMicrotasks();
 			const result = await promise;
 
-			expect(result.typed).toBe(true);
-			expect(result.value).toBe("updated");
+			const s = result as TypeSuccess;
+			expect(s.typed).toBe(true);
+			expect(s.value).toBe("updated");
 		});
 
 		test("dispatches input event on contenteditable", async () => {
@@ -422,8 +440,9 @@ describe("typeHandler", () => {
 			await flushMicrotasks();
 			const result = await promise;
 
-			expect(result.typed).toBe(true);
-			expect(result.value).toBe("React value");
+			const s = result as TypeSuccess;
+			expect(s.typed).toBe(true);
+			expect(s.value).toBe("React value");
 
 			const input = document.querySelector("#react-input") as HTMLInputElement;
 			expect(input.value).toBe("React value");
@@ -443,8 +462,9 @@ describe("typeHandler", () => {
 			await flushMicrotasks();
 			const result = await promise;
 
-			expect(result.typed).toBe(true);
-			expect(result.value).toBe("TA value");
+			const s = result as TypeSuccess;
+			expect(s.typed).toBe(true);
+			expect(s.value).toBe("TA value");
 
 			const textarea = document.querySelector(
 				"#ta",
@@ -504,16 +524,18 @@ describe("typeHandler", () => {
 			const promise = typeHandler(null);
 			await flushMicrotasks();
 			const result = await promise;
-			expect(result.typed).toBe(false);
-			expect(result.error).toBe("ELEMENT_NOT_FOUND");
+			const e = result as TypeErrorResult;
+			expect(e.typed).toBe(false);
+			expect(e.error).toBe("ELEMENT_NOT_FOUND");
 		});
 
 		test("returns ELEMENT_NOT_FOUND for missing selector", async () => {
 			const promise = typeHandler({ text: "hello" });
 			await flushMicrotasks();
 			const result = await promise;
-			expect(result.typed).toBe(false);
-			expect(result.error).toBe("ELEMENT_NOT_FOUND");
+			const e = result as TypeErrorResult;
+			expect(e.typed).toBe(false);
+			expect(e.error).toBe("ELEMENT_NOT_FOUND");
 		});
 
 		test("returns ELEMENT_NOT_TYPABLE for non-typable element", async () => {
@@ -527,10 +549,11 @@ describe("typeHandler", () => {
 			await flushMicrotasks();
 			const result = await promise;
 
-			expect(result.typed).toBe(false);
-			expect(result.error).toBe("ELEMENT_NOT_TYPABLE");
-			expect(result.message).toContain("not a typable element");
-			expect(result.tag).toBe("div");
+			const e = result as TypeErrorResult;
+			expect(e.typed).toBe(false);
+			expect(e.error).toBe("ELEMENT_NOT_TYPABLE");
+			expect(e.message).toContain("not a typable element");
+			expect(e.tag).toBe("div");
 		});
 
 		test("returns ELEMENT_NOT_INTERACTABLE for disabled input", async () => {
@@ -544,8 +567,9 @@ describe("typeHandler", () => {
 			await flushMicrotasks();
 			const result = await promise;
 
-			expect(result.typed).toBe(false);
-			expect(result.error).toBe("ELEMENT_NOT_INTERACTABLE");
+			const e = result as TypeErrorResult;
+			expect(e.typed).toBe(false);
+			expect(e.error).toBe("ELEMENT_NOT_INTERACTABLE");
 		});
 
 		test("returns ELEMENT_NOT_INTERACTABLE for read-only input", async () => {
@@ -559,8 +583,9 @@ describe("typeHandler", () => {
 			await flushMicrotasks();
 			const result = await promise;
 
-			expect(result.typed).toBe(false);
-			expect(result.error).toBe("ELEMENT_NOT_INTERACTABLE");
+			const e = result as TypeErrorResult;
+			expect(e.typed).toBe(false);
+			expect(e.error).toBe("ELEMENT_NOT_INTERACTABLE");
 		});
 
 		test("returns ELEMENT_NOT_INTERACTABLE for hidden input", async () => {
@@ -575,8 +600,9 @@ describe("typeHandler", () => {
 			await flushMicrotasks();
 			const result = await promise;
 
-			expect(result.typed).toBe(false);
-			expect(result.error).toBe("ELEMENT_NOT_INTERACTABLE");
+			const e = result as TypeErrorResult;
+			expect(e.typed).toBe(false);
+			expect(e.error).toBe("ELEMENT_NOT_INTERACTABLE");
 		});
 
 		test("returns ELEMENT_NOT_FOUND when element appears after timeout", async () => {
@@ -592,10 +618,11 @@ describe("typeHandler", () => {
 			await vi.advanceTimersByTimeAsync(200);
 
 			const result = await promise;
-			expect(result.typed).toBe(false);
-			expect(result.error).toBe("ELEMENT_NOT_FOUND");
-			expect(result.message).toContain("#late");
-			expect(result.message).toContain("200ms");
+			const e = result as TypeErrorResult;
+			expect(e.typed).toBe(false);
+			expect(e.error).toBe("ELEMENT_NOT_FOUND");
+			expect(e.message).toContain("#late");
+			expect(e.message).toContain("200ms");
 		});
 	});
 

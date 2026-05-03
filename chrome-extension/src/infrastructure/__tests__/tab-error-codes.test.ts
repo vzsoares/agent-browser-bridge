@@ -26,12 +26,13 @@ function makeReq(id = "test-1", action = "click") {
 
 /** Install a mock for chrome.tabs.sendMessage. */
 function mockSendMessage() {
-  const mock = vi.fn<[number, unknown], Promise<unknown>>();
+  const mock = vi.fn<(tabId: number, message: unknown) => Promise<unknown>>();
   const g = globalThis as Record<string, unknown>;
   g.chrome = g.chrome ?? {};
-  const tabs = (g.chrome as Record<string, unknown>).tabs ?? {};
+  const chrome = g.chrome as Record<string, unknown>;
+  const tabs = chrome.tabs ?? {};
   (tabs as Record<string, unknown>).sendMessage = mock;
-  g.chrome.tabs = tabs;
+  chrome.tabs = tabs;
   return mock;
 }
 

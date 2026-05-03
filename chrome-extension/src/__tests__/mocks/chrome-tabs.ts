@@ -146,7 +146,7 @@ export const chromeTabsMock = {
       if (updateProperties.active !== undefined) {
         mockTabs[idx] = { ...mockTabs[idx], active: updateProperties.active };
       }
-      const tab = mockTabs[idx];
+      const tab = mockTabs[idx]!;
       return Promise.resolve({
         id: tab.id!,
         index: tab.index ?? 0,
