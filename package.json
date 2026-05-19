@@ -1,6 +1,7 @@
 {
 	"name": "agent-browser-bridge",
 	"type": "module",
+    "version": "0.0.1",
 	"private": true,
 	"workspaces": [
 		"logger",
