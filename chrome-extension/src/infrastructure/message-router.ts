@@ -20,6 +20,7 @@ import {
 	forwardToContentScript,
 	getActiveTabId,
 	getActiveTabUrl,
+	getTab,
 } from "./chrome-tabs.js";
 import type { WebSocketClient } from "./websocket-client.js";
 
@@ -90,6 +91,7 @@ function parseRequest(raw: string): Request | Response {
 		"exec",
 		"waitForElement",
 		"waitForText",
+		"createTab",
 		"listTabs",
 		"closeTab",
 	];
@@ -142,6 +144,8 @@ export interface MessageRouterOptions {
 	handleListTabs: (id: string, params: unknown) => Promise<Response>;
 	/** Service-worker-level closeTab handler (needs chrome.tabs.remove). */
 	handleCloseTab: (id: string, params: unknown) => Promise<Response>;
+	/** Service-worker-level createTab handler (needs chrome.tabs.create). */
+	handleCreateTab: (id: string, params: unknown) => Promise<Response>;
 	/** Service-worker-level exec handler (needs chrome.scripting in MAIN world). */
 	handleExec: (id: string, params: unknown) => Promise<Response>;
 }
@@ -164,6 +168,7 @@ export function createMessageRouter(
 		handleScreenshot,
 		handleListTabs,
 		handleCloseTab,
+		handleCreateTab,
 		handleExec,
 	} = options;
 
@@ -231,22 +236,64 @@ export function createMessageRouter(
 			return;
 		}
 
-		// ── Exec: handle directly in MAIN world via chrome.scripting ───────
-		// Bypasses the extension's CSP. Works on most pages; on strict-CSP
-		// pages the page's own unsafe-eval ban will still apply, but at
-		// least the failure mode is the page's CSP, not ours.
-		if (request.action === "exec") {
-			const resp = await handleExec(request.id, request.params);
+		// ── CreateTab: handle directly (chrome.tabs API, no content script) ─
+		if (request.action === "createTab") {
+			const resp = await handleCreateTab(request.id, request.params);
 			sendResponse(resp);
 			return;
 		}
 
-		// ── Domain allowlist check ─────────────────────────────────────────
-		const tabUrl = await getActiveTabUrl();
-		if (tabUrl) {
+		// ── Resolve the target tab for every remaining action ─────────────
+		// All actions below (exec, click, type, read, waitFor*) accept an
+		// optional `tabId` param. When omitted, we fall back to the active
+		// tab. When provided, we validate the tab exists; this is the only
+		// place that check lives, so each handler can trust the id.
+		const params = request.params as Record<string, unknown> | undefined;
+		const requestedTabId =
+			typeof params?.tabId === "number" ? params.tabId : undefined;
+
+		let targetTabId: number | null;
+		if (requestedTabId !== undefined) {
+			const existing = await getTab(requestedTabId);
+			if (!existing) {
+				sendResponse({
+					id: request.id,
+					error: {
+						code: "TAB_NOT_FOUND",
+						message: `Tab ${requestedTabId} does not exist or has been closed.`,
+						suggestion: "Use listTabs to find a valid tabId.",
+					},
+				});
+				return;
+			}
+			targetTabId = requestedTabId;
+		} else {
+			if (activeTabId.current === null) {
+				activeTabId.current = await getActiveTabId();
+			}
+			targetTabId = activeTabId.current;
+		}
+
+		if (targetTabId === null) {
+			sendResponse({
+				id: request.id,
+				error: {
+					code: "BROWSER_NOT_CONNECTED",
+					message: "No active tab available",
+				},
+			});
+			return;
+		}
+
+		// ── Domain allowlist check against the *target* tab ────────────────
+		const targetUrl =
+			requestedTabId !== undefined
+				? ((await getTab(targetTabId))?.url ?? null)
+				: await getActiveTabUrl();
+		if (targetUrl) {
 			let hostname: string;
 			try {
-				hostname = new URL(tabUrl).hostname;
+				hostname = new URL(targetUrl).hostname;
 			} catch {
 				hostname = "";
 			}
@@ -266,23 +313,21 @@ export function createMessageRouter(
 			}
 		}
 
-		// ── All other actions: forward to content script ──────────────────
-		if (activeTabId.current === null) {
-			activeTabId.current = await getActiveTabId();
-		}
-
-		if (activeTabId.current === null) {
-			sendResponse({
-				id: request.id,
-				error: {
-					code: "BROWSER_NOT_CONNECTED",
-					message: "No active tab available",
-				},
+		// ── Exec: handle directly in MAIN world via chrome.scripting ───────
+		// Bypasses the extension's CSP. Works on most pages; on strict-CSP
+		// pages the page's own unsafe-eval ban will still apply, but at
+		// least the failure mode is the page's CSP, not ours.
+		if (request.action === "exec") {
+			const resp = await handleExec(request.id, {
+				...(params ?? {}),
+				tabId: targetTabId,
 			});
+			sendResponse(resp);
 			return;
 		}
 
-		const resp = await forwardToContentScript(activeTabId.current, request);
+		// ── All other actions: forward to content script in the target tab ─
+		const resp = await forwardToContentScript(targetTabId, request);
 		sendResponse(resp as Response);
 	}
 

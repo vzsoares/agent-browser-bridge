@@ -137,6 +137,7 @@ describe("Multi-tab integration — tab routing", () => {
 			handleListTabs: vi.fn(),
 			handleCloseTab: vi.fn(),
 			handleExec: vi.fn(),
+			handleCreateTab: vi.fn(),
 		});
 
 		// Send a click action targeting tab 2
@@ -182,6 +183,7 @@ describe("Multi-tab integration — tab routing", () => {
 			handleListTabs: vi.fn(),
 			handleCloseTab: vi.fn(),
 			handleExec: vi.fn(),
+			handleCreateTab: vi.fn(),
 		});
 
 		await handleMessage(
@@ -257,6 +259,7 @@ describe("Multi-tab integration — navigate creates new tab", () => {
 			handleListTabs: vi.fn(),
 			handleCloseTab: vi.fn(),
 			handleExec: vi.fn(),
+			handleCreateTab: vi.fn(),
 		});
 
 		await handleMessage(
@@ -323,6 +326,7 @@ describe("Multi-tab integration — navigate creates new tab", () => {
 			handleListTabs: vi.fn(),
 			handleCloseTab: vi.fn(),
 			handleExec: vi.fn(),
+			handleCreateTab: vi.fn(),
 		});
 
 		await handleMessage(
@@ -371,6 +375,7 @@ describe("Multi-tab integration — navigate creates new tab", () => {
 			handleListTabs: vi.fn(),
 			handleCloseTab: vi.fn(),
 			handleExec: vi.fn(),
+			handleCreateTab: vi.fn(),
 		});
 
 		await handleMessage(
@@ -490,6 +495,7 @@ describe("Multi-tab integration — simultaneous multi-tab control", () => {
 			handleListTabs: vi.fn(),
 			handleCloseTab: vi.fn(),
 			handleExec: vi.fn(),
+			handleCreateTab: vi.fn(),
 		});
 
 		// Request 2: action on tab 2 (different activeTabId)
@@ -505,6 +511,7 @@ describe("Multi-tab integration — simultaneous multi-tab control", () => {
 			handleListTabs: vi.fn(),
 			handleCloseTab: vi.fn(),
 			handleExec: vi.fn(),
+			handleCreateTab: vi.fn(),
 		});
 
 		// Execute concurrently
@@ -561,6 +568,7 @@ describe("Multi-tab integration — simultaneous multi-tab control", () => {
 			handleListTabs: vi.fn(),
 			handleCloseTab: vi.fn(),
 			handleExec: vi.fn(),
+			handleCreateTab: vi.fn(),
 		});
 
 		const handleMessage2 = createMessageRouter({
@@ -573,6 +581,7 @@ describe("Multi-tab integration — simultaneous multi-tab control", () => {
 			handleListTabs: vi.fn(),
 			handleCloseTab: vi.fn(),
 			handleExec: vi.fn(),
+			handleCreateTab: vi.fn(),
 		});
 
 		await Promise.all([
@@ -749,6 +758,7 @@ describe("Multi-tab integration — allowlist uses resolved tab URL", () => {
 			handleListTabs: vi.fn(),
 			handleCloseTab: vi.fn(),
 			handleExec: vi.fn(),
+			handleCreateTab: vi.fn(),
 		});
 
 		await handleMessage(
@@ -781,6 +791,7 @@ describe("Multi-tab integration — allowlist uses resolved tab URL", () => {
 			handleListTabs: vi.fn(),
 			handleCloseTab: vi.fn(),
 			handleExec: vi.fn(),
+			handleCreateTab: vi.fn(),
 		});
 
 		await handleMessage(
@@ -818,6 +829,7 @@ describe("Multi-tab integration — allowlist uses resolved tab URL", () => {
 			handleListTabs: vi.fn(),
 			handleCloseTab: vi.fn(),
 			handleExec: vi.fn(),
+			handleCreateTab: vi.fn(),
 		});
 
 		await handleMessage(
@@ -858,6 +870,7 @@ describe("Multi-tab integration — allowlist uses resolved tab URL", () => {
 			handleListTabs: vi.fn(),
 			handleCloseTab: vi.fn(),
 			handleExec: vi.fn(),
+			handleCreateTab: vi.fn(),
 		});
 
 		await handleMessage(
@@ -899,6 +912,7 @@ describe("Multi-tab integration — single-tab backward compatibility", () => {
 			handleListTabs: vi.fn(),
 			handleCloseTab: vi.fn(),
 			handleExec: vi.fn(),
+			handleCreateTab: vi.fn(),
 		});
 
 		await handleMessage(
@@ -929,6 +943,7 @@ describe("Multi-tab integration — single-tab backward compatibility", () => {
 			handleListTabs: vi.fn(),
 			handleCloseTab: vi.fn(),
 			handleExec: vi.fn(),
+			handleCreateTab: vi.fn(),
 		});
 
 		await handleMessage(
@@ -964,6 +979,7 @@ describe("Multi-tab integration — single-tab backward compatibility", () => {
 			handleListTabs: vi.fn(),
 			handleCloseTab: vi.fn(),
 			handleExec: vi.fn(),
+			handleCreateTab: vi.fn(),
 		});
 
 		await handleMessage(
@@ -991,6 +1007,7 @@ describe("Multi-tab integration — single-tab backward compatibility", () => {
 			handleListTabs: vi.fn(),
 			handleCloseTab: vi.fn(),
 			handleExec: vi.fn(),
+			handleCreateTab: vi.fn(),
 		});
 
 		await handleMessage(

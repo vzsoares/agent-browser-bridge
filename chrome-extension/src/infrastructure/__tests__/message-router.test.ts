@@ -49,6 +49,7 @@ function createRouterOptions(
 		handleScreenshot?: ReturnType<typeof vi.fn>;
 		handleListTabs?: ReturnType<typeof vi.fn>;
 		handleCloseTab?: ReturnType<typeof vi.fn>;
+		handleCreateTab?: ReturnType<typeof vi.fn>;
 		handleExec?: ReturnType<typeof vi.fn>;
 	} = {},
 ): MessageRouterOptions {
@@ -61,6 +62,7 @@ function createRouterOptions(
 		handleScreenshot: overrides.handleScreenshot ?? vi.fn(),
 		handleListTabs: overrides.handleListTabs ?? vi.fn(),
 		handleCloseTab: overrides.handleCloseTab ?? vi.fn(),
+		handleCreateTab: overrides.handleCreateTab ?? vi.fn(),
 		handleExec: overrides.handleExec ?? vi.fn(),
 	} as unknown as MessageRouterOptions;
 }

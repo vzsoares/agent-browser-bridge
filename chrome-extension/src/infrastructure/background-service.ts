@@ -465,6 +465,105 @@ async function serviceHandleExec(
 	}
 }
 
+// ── Create tab handler (service-worker level) ───────────────────────
+
+/**
+ * Handle the `createTab` action directly in the service worker.
+ *
+ * Validates the optional URL, opens a new tab via `chrome.tabs.create`,
+ * waits for it to finish loading when a URL is provided, and returns the
+ * resulting `{ tabId, url, title }`.
+ */
+async function serviceHandleCreateTab(
+	id: string,
+	params: unknown,
+): Promise<Response> {
+	const p = (params ?? {}) as Record<string, unknown>;
+	const rawUrl = p.url;
+	const active = typeof p.active === "boolean" ? p.active : true;
+
+	let url: string | undefined;
+	if (rawUrl !== undefined && rawUrl !== null && rawUrl !== "") {
+		if (typeof rawUrl !== "string") {
+			return {
+				id,
+				error: {
+					code: "INVALID_URL",
+					message: "'url' must be a string.",
+					suggestion: "Provide a fully-qualified URL like https://example.com",
+				},
+			};
+		}
+		let parsed: URL;
+		try {
+			parsed = new URL(rawUrl);
+		} catch {
+			return {
+				id,
+				error: {
+					code: "INVALID_URL",
+					message: `Invalid URL format: "${rawUrl}"`,
+					suggestion: "Provide a fully-qualified URL like https://example.com",
+				},
+			};
+		}
+		if (isRestrictedUrl(parsed.href)) {
+			return {
+				id,
+				error: {
+					code: "RESTRICTED_URL",
+					message: `Cannot open restricted URL scheme in a new tab: ${parsed.protocol}//`,
+					suggestion: "Use https:// URLs for web pages.",
+				},
+			};
+		}
+		url = parsed.href;
+	}
+
+	try {
+		const tab = await createTab(url, active);
+		if (!tab.id) {
+			return {
+				id,
+				error: {
+					code: "BROWSER_NOT_CONNECTED",
+					message: "Failed to create a new tab (no id assigned).",
+				},
+			};
+		}
+
+		// If we asked for a URL, wait for the load to settle so the caller
+		// gets a real title back.
+		if (url) {
+			try {
+				await waitForTabComplete(tab.id, 30_000);
+				await sleep(100);
+			} catch {
+				// Load timed out — fall through and return whatever metadata we have.
+			}
+		}
+
+		const fresh = await getTab(tab.id);
+		return {
+			id,
+			result: {
+				tabId: tab.id,
+				url: fresh?.url ?? url ?? "",
+				title: fresh?.title ?? "",
+			},
+		};
+	} catch (e) {
+		const err = e instanceof Error ? e.message : String(e);
+		return {
+			id,
+			error: {
+				code: "UNKNOWN_ACTION",
+				message: `Failed to create tab: ${err}`,
+			},
+		};
+	}
+}
+
 // ── Close tab handler (service-worker level) ────────────────────────
 
 /**
@@ -604,8 +703,14 @@ export async function init(logger: Logger): Promise<{
 		},
 		handleListTabs: (id, p) => serviceHandleListTabs(id, p),
 		handleCloseTab: (id, p) => serviceHandleCloseTab(id, p),
+		handleCreateTab: (id, p) => serviceHandleCreateTab(id, p),
 		handleExec: async (id, p) => {
-			const tabId = activeTabId.current ?? (await getActiveTabId());
+			// message-router has already resolved + validated `tabId` in `p`.
+			const pTyped = p as Record<string, unknown> | null | undefined;
+			const tabId =
+				typeof pTyped?.tabId === "number"
+					? pTyped.tabId
+					: (activeTabId.current ?? (await getActiveTabId()));
 			if (tabId === null) {
 				return {
 					id,
