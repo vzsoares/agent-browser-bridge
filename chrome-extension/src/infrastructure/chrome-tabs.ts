@@ -220,7 +220,41 @@ export async function sendMessageToTab(
 	]);
 }
 
-/** Verify the content script is loaded by sending a lightweight ping. */
+/**
+ * Read the content-script file paths declared in the extension manifest.
+ *
+ * Vite/CRX rewrites the script filenames at build time (hashed assets), so
+ * we resolve them at runtime instead of hard-coding paths.
+ */
+function contentScriptFiles(): string[] {
+	const manifest = chrome.runtime.getManifest();
+	const scripts = manifest.content_scripts ?? [];
+	const files: string[] = [];
+	for (const entry of scripts) {
+		for (const f of entry.js ?? []) files.push(f);
+	}
+	return files;
+}
+
+/**
+ * Programmatically inject the manifest-declared content script into a tab.
+ *
+ * Used as a recovery path when {@link ensureContentScript} finds no listener
+ * — typically because the tab was open before the extension loaded, or the
+ * extension was reloaded after the page was already settled.
+ */
+async function tryInjectContentScript(tabId: number): Promise<void> {
+	const files = contentScriptFiles();
+	if (files.length === 0) {
+		throw new Error("No content scripts declared in manifest");
+	}
+	await chrome.scripting.executeScript({ target: { tabId }, files });
+}
+
+/**
+ * Verify the content script is loaded by sending a lightweight ping. If the
+ * first ping fails, attempt a one-shot programmatic injection and re-ping.
+ */
 export async function ensureContentScript(tabId: number): Promise<void> {
 	// Skip if we've already verified this tab.
 	if (isInjected(tabId)) return;
@@ -228,12 +262,24 @@ export async function ensureContentScript(tabId: number): Promise<void> {
 	try {
 		await sendMessageToTab(tabId, { type: "ping" }, 5_000);
 		markInjected(tabId);
+		return;
 	} catch {
-		// The content script is not injected (e.g. chrome:// pages, extensions
-		// pages, or the tab hasn't fully loaded yet).
+		// Fall through to programmatic injection.
+	}
+
+	// One-shot recovery: try to inject the content script ourselves, then
+	// re-ping. Failures here mean the page truly disallows injection
+	// (chrome://, edge://, the Chrome Web Store, PDF viewers, etc.).
+	try {
+		await tryInjectContentScript(tabId);
+		await sendMessageToTab(tabId, { type: "ping" }, 5_000);
+		markInjected(tabId);
+		return;
+	} catch (e) {
 		removeInjected(tabId);
+		const reason = e instanceof Error ? e.message : String(e);
 		throw new Error(
-			`Content script not available in tab ${tabId}. The page may be a restricted URL or still loading.`,
+			`Content script not available in tab ${tabId} (${reason}). The page may be a restricted URL (chrome://, Chrome Web Store, etc.) or block extension injection.`,
 		);
 	}
 }

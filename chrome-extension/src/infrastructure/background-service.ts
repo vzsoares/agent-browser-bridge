@@ -285,6 +285,186 @@ async function serviceHandleListTabs(
 	}
 }
 
+// ── Exec handler (service-worker level) ─────────────────────────────
+
+/**
+ * Self-contained page-world evaluator. Injected verbatim via
+ * `chrome.scripting.executeScript({ world: "MAIN", func })`.
+ *
+ * Inlined intentionally — no closures, no imports — because Chrome
+ * serializes this function's source and re-instantiates it in the page
+ * world. Anything captured from the surrounding scope wouldn't survive.
+ */
+function pageExecEvaluator(codeStr: string): {
+	ok: boolean;
+	serialized?: string;
+	error?: string;
+} {
+	const MAX = 10_000;
+
+	function serialize(v: unknown): string {
+		if (v === null) return "null";
+		if (v === undefined) return "undefined";
+		const t = typeof v;
+		if (t === "string") return v as string;
+		if (t === "number" || t === "boolean") return String(v);
+		if (t === "bigint") return `${(v as bigint).toString()}n`;
+		if (t === "function") {
+			const n = (v as { name?: string }).name || "anonymous";
+			return `[Function: ${n}]`;
+		}
+		if (t === "symbol") {
+			const d = (v as symbol).description;
+			return d ? `[Symbol: ${d}]` : "[Symbol]";
+		}
+		try {
+			return JSON.stringify(v, null, 2) ?? String(v);
+		} catch {
+			const seen = new WeakSet<object>();
+			return JSON.stringify(
+				v,
+				(_k, val: unknown) => {
+					if (typeof val === "object" && val !== null) {
+						if (seen.has(val)) return "[Circular]";
+						seen.add(val);
+					}
+					if (typeof val === "function") return "[Function]";
+					if (typeof val === "bigint") return `${val.toString()}n`;
+					return val;
+				},
+				2,
+			);
+		}
+	}
+
+	function clamp(s: string): string {
+		if (s.length <= MAX) return s;
+		return `${s.slice(0, MAX)}\n... [truncated at ${MAX} chars, total ${s.length}]`;
+	}
+
+	try {
+		const fn = new Function(`"use strict"; return (${codeStr})`);
+		const raw = fn();
+		if (
+			raw &&
+			typeof raw === "object" &&
+			typeof (raw as { then?: unknown }).then === "function"
+		) {
+			// Async path — propagate the promise so the caller awaits it.
+			return (raw as Promise<unknown>).then(
+				(v) => ({ ok: true, serialized: clamp(serialize(v)) }),
+				(err: unknown) => ({
+					ok: false,
+					error: err instanceof Error ? err.message : String(err),
+				}),
+			) as unknown as { ok: boolean; serialized?: string; error?: string };
+		}
+		return { ok: true, serialized: clamp(serialize(raw)) };
+	} catch (err) {
+		return {
+			ok: false,
+			error: err instanceof Error ? err.message : String(err),
+		};
+	}
+}
+
+/**
+ * Handle the `exec` action at the service-worker level via
+ * `chrome.scripting.executeScript({ world: "MAIN" })`.
+ *
+ * Running in the MAIN world means the extension's own CSP doesn't apply —
+ * only the page's CSP does. On normal pages this Just Works; on hardened
+ * pages (Datadog and friends) the page's `unsafe-eval` ban will still
+ * block `new Function`, and we surface a clear error.
+ */
+async function serviceHandleExec(
+	id: string,
+	params: unknown,
+	tabId: number,
+): Promise<Response> {
+	const p = params as { code?: string } | null | undefined;
+	if (!p || typeof p.code !== "string" || p.code.trim().length === 0) {
+		return {
+			id,
+			error: {
+				code: "UNKNOWN_ACTION",
+				message: "Missing or invalid 'code' parameter.",
+				suggestion: "Provide a string of JavaScript code to execute.",
+			},
+		};
+	}
+
+	try {
+		const results = await chrome.scripting.executeScript({
+			target: { tabId },
+			world: "MAIN",
+			args: [p.code],
+			func: pageExecEvaluator,
+		});
+		const payload = results[0]?.result as
+			| { ok: boolean; serialized?: string; error?: string }
+			| undefined;
+
+		if (!payload) {
+			return {
+				id,
+				error: {
+					code: "UNKNOWN_ACTION",
+					message: "Exec returned no result.",
+				},
+			};
+		}
+
+		if (payload.ok) {
+			return { id, result: { tabId, serialized: payload.serialized ?? "" } };
+		}
+
+		const err = payload.error ?? "Unknown error";
+		// Translate page-CSP eval blocks into a friendlier code so callers can
+		// react (e.g. fall back to read-only operations).
+		if (
+			/unsafe-eval|Content Security Policy|new Function/.test(err) ||
+			/EvalError/.test(err)
+		) {
+			return {
+				id,
+				error: {
+					code: "UNKNOWN_ACTION",
+					message: `Exec blocked by the page's Content Security Policy: ${err}`,
+					suggestion:
+						"The page forbids dynamic JS evaluation. Use browser_read / browser_click / browser_type for DOM interactions on this page.",
+				},
+			};
+		}
+		return {
+			id,
+			error: { code: "UNKNOWN_ACTION", message: `Exec failed: ${err}` },
+		};
+	} catch (e) {
+		const err = e instanceof Error ? e.message : String(e);
+		// Chrome itself blocks scripting on chrome:// and a handful of other
+		// origins — surface that distinctly.
+		if (
+			err.includes("Cannot access") ||
+			err.includes("chrome://") ||
+			err.includes("restricted")
+		) {
+			return {
+				id,
+				error: {
+					code: "RESTRICTED_URL",
+					message: `Exec is not permitted on this page: ${err}`,
+					suggestion: "Navigate to an https:// page and retry.",
+				},
+			};
+		}
+		return {
+			id,
+			error: { code: "UNKNOWN_ACTION", message: `Exec failed: ${err}` },
+		};
+	}
+}
+
 // ── Close tab handler (service-worker level) ────────────────────────
 
 /**
@@ -424,6 +604,21 @@ export async function init(logger: Logger): Promise<{
 		},
 		handleListTabs: (id, p) => serviceHandleListTabs(id, p),
 		handleCloseTab: (id, p) => serviceHandleCloseTab(id, p),
+		handleExec: async (id, p) => {
+			const tabId = activeTabId.current ?? (await getActiveTabId());
+			if (tabId === null) {
+				return {
+					id,
+					error: {
+						code: "BROWSER_NOT_CONNECTED" as const,
+						message: "No active tab available for exec.",
+						suggestion:
+							"Ensure a tab is open and active in the browser window.",
+					},
+				};
+			}
+			return serviceHandleExec(id, p, tabId);
+		},
 	});
 
 	// ── Tab lifecycle listeners ─────────────────────────────────────

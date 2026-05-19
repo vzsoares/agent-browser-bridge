@@ -36,9 +36,14 @@ cd chrome-extension && bun run build
 # → chrome://extensions → "Load unpacked" → select chrome-extension/dist/
 
 # 3. Register the MCP server with Claude Code
+#    NB: the path MUST be absolute — Claude Code spawns the process from
+#    its own cwd, so `./bridge/...` and `~/bridge/...` will silently fail.
+#    Run this from the repo root so `$(pwd)` resolves correctly.
 claude mcp add --transport stdio --scope user agent-browser-bridge \
-  -- bun /absolute/path/to/agent-browser-bridge/bridge/src/mcp/server.ts
+  -- bun "$(pwd)/bridge/src/mcp/server.ts"
 ```
+
+Verify with `claude mcp list` — you should see `agent-browser-bridge: ... ✓ Connected`. If you see `✗ Failed to connect`, the most common cause is a relative or placeholder path in the registration; re-run the command above from the repo root.
 
 Open Claude Code — the extension badge turns 🟢 green when connected, and the 11 `browser_*` tools are available.
 

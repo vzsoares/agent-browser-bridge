@@ -1,7 +1,7 @@
 /**
  * Message dispatcher routing tests.
  *
- * Verifies the dispatcher correctly routes all 8 action types to their
+ * Verifies the content-script dispatcher correctly routes its action types to their
  * handlers and returns structured UNKNOWN_ACTION errors for unknown actions.
  *
  * @module application/__tests__/dispatcher.test
@@ -22,8 +22,11 @@ function isErrorResponse(v: unknown): v is ErrorResponse {
 
 describe("Message dispatcher", () => {
 	describe("ALL_ACTIONS constant", () => {
-		test("contains exactly 7 action types", () => {
-			expect(ALL_ACTIONS).toHaveLength(7);
+		// `exec` is intentionally excluded — handled at the service-worker
+		// level via chrome.scripting in the MAIN world, not via the
+		// content-script dispatcher.
+		test("contains exactly 6 action types", () => {
+			expect(ALL_ACTIONS).toHaveLength(6);
 		});
 
 		test("includes all expected action names", () => {
@@ -31,13 +34,16 @@ describe("Message dispatcher", () => {
 			expect(ALL_ACTIONS).toContain("click");
 			expect(ALL_ACTIONS).toContain("type");
 			expect(ALL_ACTIONS).toContain("read");
-			expect(ALL_ACTIONS).toContain("exec");
 			expect(ALL_ACTIONS).toContain("waitForElement");
 			expect(ALL_ACTIONS).toContain("waitForText");
 		});
+
+		test("does NOT include exec (handled in service worker)", () => {
+			expect(ALL_ACTIONS).not.toContain("exec");
+		});
 	});
 
-	describe("routing all 8 action types", () => {
+	describe("routing all content-script action types", () => {
 		test("routes 'navigate' action", async () => {
 			// With a valid URL, handleNavigate either returns a same-page success,
 			// a cross-page sentinel, or a validation error.
@@ -95,13 +101,10 @@ describe("Message dispatcher", () => {
 			expect(r).toHaveProperty("truncated");
 		});
 
-		test("routes 'exec' action", async () => {
+		test("dispatching 'exec' returns UNKNOWN_ACTION (handled in service worker)", async () => {
 			const result = await dispatch("exec", { code: "1 + 2" });
 			const r = result as Record<string, unknown>;
-			expect(r).toHaveProperty("serialized");
-			expect(r.serialized).toBe("3");
-			expect(r).toHaveProperty("value");
-			expect(r.value).toBe(3);
+			expect(r).toHaveProperty("code", "UNKNOWN_ACTION");
 		});
 
 		test("routes 'waitForElement' action", async () => {

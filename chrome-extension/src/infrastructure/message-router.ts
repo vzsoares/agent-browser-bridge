@@ -142,6 +142,8 @@ export interface MessageRouterOptions {
 	handleListTabs: (id: string, params: unknown) => Promise<Response>;
 	/** Service-worker-level closeTab handler (needs chrome.tabs.remove). */
 	handleCloseTab: (id: string, params: unknown) => Promise<Response>;
+	/** Service-worker-level exec handler (needs chrome.scripting in MAIN world). */
+	handleExec: (id: string, params: unknown) => Promise<Response>;
 }
 
 /**
@@ -162,6 +164,7 @@ export function createMessageRouter(
 		handleScreenshot,
 		handleListTabs,
 		handleCloseTab,
+		handleExec,
 	} = options;
 
 	async function handleIncomingMessage(raw: string): Promise<void> {
@@ -224,6 +227,16 @@ export function createMessageRouter(
 		// ── CloseTab: handle directly (chrome.tabs API, no content script) ──
 		if (request.action === "closeTab") {
 			const resp = await handleCloseTab(request.id, request.params);
+			sendResponse(resp);
+			return;
+		}
+
+		// ── Exec: handle directly in MAIN world via chrome.scripting ───────
+		// Bypasses the extension's CSP. Works on most pages; on strict-CSP
+		// pages the page's own unsafe-eval ban will still apply, but at
+		// least the failure mode is the page's CSP, not ours.
+		if (request.action === "exec") {
+			const resp = await handleExec(request.id, request.params);
 			sendResponse(resp);
 			return;
 		}

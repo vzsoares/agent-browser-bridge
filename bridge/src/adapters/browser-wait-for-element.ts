@@ -39,8 +39,9 @@ export async function executeWaitForElement(
 	}
 
 	const { selector, elapsedMs, tagName } = result.data;
+	const tag = tagName?.toLowerCase() ?? "?";
 	return textResult(
-		`Element "${selector}" appeared after ${elapsedMs}ms (tag: <${tagName.toLowerCase()}>).`,
+		`Element "${selector}" appeared after ${elapsedMs}ms (tag: <${tag}>).`,
 	);
 }
 

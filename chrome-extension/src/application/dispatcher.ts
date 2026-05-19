@@ -14,7 +14,6 @@
 import type { ErrorResponse } from "@agent-browser-bridge/protocol";
 
 import { handleClick } from "./handle-click.js";
-import { handleExec } from "./handle-exec.js";
 import { handleNavigate } from "./handle-navigate.js";
 import { handleRead } from "./handle-read.js";
 import { handleType } from "./handle-type.js";
@@ -26,13 +25,19 @@ import { handleWaitForText } from "./handle-wait-for-text.js";
 /** Signature for every action handler. */
 type ActionHandler = (params: unknown) => Promise<unknown>;
 
-/** Mapping from action name to handler. */
+/**
+ * Mapping from action name to handler.
+ *
+ * Note: `exec` is intentionally absent — it is handled in the service
+ * worker via `chrome.scripting.executeScript({ world: "MAIN" })` so it
+ * bypasses the extension's CSP. The content-script `handleExec` module
+ * is retained for unit-test coverage only.
+ */
 const handlers = new Map<string, ActionHandler>([
 	["navigate", handleNavigate as ActionHandler],
 	["click", handleClick as ActionHandler],
 	["type", handleType as ActionHandler],
 	["read", handleRead as ActionHandler],
-	["exec", handleExec as ActionHandler],
 	["waitForElement", handleWaitForElement as ActionHandler],
 	["waitForText", handleWaitForText as ActionHandler],
 ]);
