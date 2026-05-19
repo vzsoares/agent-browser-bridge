@@ -1,5 +1,5 @@
 {
-	"name": "@pi-browser-bridge/chrome-extension",
+	"name": "@agent-browser-bridge/chrome-extension",
 	"version": "0.1.0",
 	"type": "module",
 	"private": true,
@@ -7,8 +7,8 @@
 		".": "./src/index.ts"
 	},
 	"dependencies": {
-		"@pi-browser-bridge/logger": "workspace:*",
-		"@pi-browser-bridge/protocol": "workspace:*"
+		"@agent-browser-bridge/logger": "workspace:*",
+		"@agent-browser-bridge/protocol": "workspace:*"
 	},
 	"scripts": {
 		"build": "vite build",

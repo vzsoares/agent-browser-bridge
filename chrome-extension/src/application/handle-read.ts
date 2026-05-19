@@ -10,7 +10,7 @@
  * @module application/handle-read
  */
 
-import type { ErrorResponse } from "@pi-browser-bridge/protocol";
+import type { ErrorResponse } from "@agent-browser-bridge/protocol";
 import { extractText } from "../domain/index.js";
 import type { ReadSuccess } from "./types.js";
 

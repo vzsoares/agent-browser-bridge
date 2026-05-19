@@ -13,7 +13,7 @@
 
 // ── Constants ────────────────────────────────────────────────────────────
 
-export const STORAGE_KEY = "pi-browser-bridge";
+export const STORAGE_KEY = "agent-browser-bridge";
 export const ALLOWLIST_KEY = "domainAllowlist";
 export const DEFAULT_PORT = 9242;
 export const DEFAULT_ALLOWLIST = ["*"];

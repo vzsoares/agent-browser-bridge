@@ -10,7 +10,7 @@
 	},
 	// ── Global Linter Rules ───────────────────────────────────────────────────────
 	//
-	// Base rules apply to all packages (logger, protocol, pi-extension,
+	// Base rules apply to all packages (logger, protocol, bridge,
 	// chrome-extension) unless overridden below.
 	"linter": {
 		"enabled": true,
@@ -72,10 +72,10 @@
 		// infrastructure/, or adapters/ are forbidden.
 		//
 		// Uses gitignore-style glob patterns via `group` (Biome v2 noRestrictedImports).
-		// Applies to both pi-extension and chrome-extension packages.
+		// Applies to both bridge and chrome-extension packages.
 		{
 			"includes": [
-				"**/pi-extension/src/domain/**",
+				"**/bridge/src/domain/**",
 				"**/chrome-extension/src/domain/**"
 			],
 			"linter": {
@@ -107,10 +107,10 @@
 		// import from Domain via interfaces (dependency inversion).
 		//
 		// Uses gitignore-style glob patterns via `group` (Biome v2 noRestrictedImports).
-		// Applies to both pi-extension and chrome-extension packages.
+		// Applies to both bridge and chrome-extension packages.
 		{
 			"includes": [
-				"**/pi-extension/src/application/**",
+				"**/bridge/src/application/**",
 				"**/chrome-extension/src/application/**"
 			],
 			"linter": {

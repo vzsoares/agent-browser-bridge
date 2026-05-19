@@ -7,10 +7,10 @@ import { defineConfig } from "vitest/config";
  * to specific packages. Each listed project has its own vitest.config.ts
  * with per-package environment, setup files, and test patterns.
  *
- * Packages using bun:test (pi-extension, protocol) are excluded
+ * Packages using bun:test (bridge, protocol) are excluded
  * from Vitest scanning by not being listed in `projects`.
  *
- * **CI exclusion**: The pi-extension e2e.test.ts is a manual pre-merge
+ * **CI exclusion**: The bridge e2e.test.ts is a manual pre-merge
  * gate that requires a running WebSocket server and simulated browser
  * clients. It is NOT run in CI — see the test file for details.
  *
@@ -18,7 +18,7 @@ import { defineConfig } from "vitest/config";
  */
 export default defineConfig({
 	test: {
-		// Only Vitest-managed packages. bun:test packages (pi-extension,
+		// Only Vitest-managed packages. bun:test packages (bridge,
 		// protocol) are not listed here to avoid conflicts.
 		projects: ["./chrome-extension"],
 

@@ -7,7 +7,7 @@
  * @module application/types
  */
 
-import type { ErrorCode, ErrorResponse } from "@pi-browser-bridge/protocol";
+import type { ErrorCode, ErrorResponse } from "@agent-browser-bridge/protocol";
 
 // ── Handler result ─────────────────────────────────────────────────────────
 

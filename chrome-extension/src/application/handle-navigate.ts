@@ -12,7 +12,7 @@
  * @module application/handle-navigate
  */
 
-import type { ErrorResponse } from "@pi-browser-bridge/protocol";
+import type { ErrorResponse } from "@agent-browser-bridge/protocol";
 import { sleep, withTimeout } from "../domain/index.js";
 import { isRestrictedUrl } from "../domain/screenshot.js";
 

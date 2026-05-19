@@ -25,7 +25,7 @@ import type {
 	TypeParams,
 	WaitForElementParams,
 	WaitForTextParams,
-} from "@pi-browser-bridge/protocol";
+} from "@agent-browser-bridge/protocol";
 
 // ═══════════════════════════════════════════════════════════════════════════
 // Action union

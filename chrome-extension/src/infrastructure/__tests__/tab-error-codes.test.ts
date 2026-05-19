@@ -8,7 +8,7 @@
  * @module infrastructure/__tests__/tab-error-codes.test
  */
 
-import type { ErrorResponse } from "@pi-browser-bridge/protocol";
+import type { ErrorResponse } from "@agent-browser-bridge/protocol";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import {
 	forwardToContentScript,

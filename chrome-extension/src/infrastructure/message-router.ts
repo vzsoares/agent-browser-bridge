@@ -12,7 +12,7 @@
  * @module infrastructure/message-router
  */
 
-import type { Request, Response } from "@pi-browser-bridge/protocol";
+import type { Request, Response } from "@agent-browser-bridge/protocol";
 
 import { matchDomain } from "../domain/index.js";
 import { getAllowlist } from "./chrome-storage.js";
@@ -25,7 +25,7 @@ import type { WebSocketClient } from "./websocket-client.js";
 
 // ── Types ──────────────────────────────────────────────────────────────
 
-/** Logger interface compatible with @pi-browser-bridge/logger. */
+/** Logger interface compatible with @agent-browser-bridge/logger. */
 interface Logger {
 	info(...args: unknown[]): void;
 	warn(...args: unknown[]): void;

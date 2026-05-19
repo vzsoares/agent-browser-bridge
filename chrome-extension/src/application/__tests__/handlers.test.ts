@@ -11,7 +11,7 @@
  * @module application/__tests__/handlers.test
  */
 
-import type { ErrorResponse } from "@pi-browser-bridge/protocol";
+import type { ErrorResponse } from "@agent-browser-bridge/protocol";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { handleClick } from "../handle-click.js";
 import { handleExec } from "../handle-exec.js";
@@ -453,11 +453,7 @@ describe("handleScreenshot", () => {
 			"data:image/jpeg;base64,ghi789",
 		);
 
-		await handleScreenshot(
-			"req-6",
-			{ format: "jpeg" },
-			fakeDeps,
-		);
+		await handleScreenshot("req-6", { format: "jpeg" }, fakeDeps);
 		expect(fakeDeps.captureVisibleTab).toHaveBeenCalledWith("jpeg", 80);
 	});
 

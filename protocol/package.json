@@ -1,5 +1,5 @@
 {
-	"name": "@pi-browser-bridge/protocol",
+	"name": "@agent-browser-bridge/protocol",
 	"version": "0.1.0",
 	"type": "module",
 	"private": true,

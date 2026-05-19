@@ -11,7 +11,7 @@
  * @module application/handle-exec
  */
 
-import type { ErrorResponse } from "@pi-browser-bridge/protocol";
+import type { ErrorResponse } from "@agent-browser-bridge/protocol";
 import { withTimeout } from "../domain/index.js";
 import type { ExecSuccess } from "./types.js";
 

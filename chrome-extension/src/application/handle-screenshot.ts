@@ -11,7 +11,7 @@
  * @module application/handle-screenshot
  */
 
-import type { Response } from "@pi-browser-bridge/protocol";
+import type { Response } from "@agent-browser-bridge/protocol";
 import {
 	isRestrictedUrl,
 	type ScreenshotValidationError,

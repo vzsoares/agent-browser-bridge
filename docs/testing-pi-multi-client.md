@@ -4,7 +4,7 @@ Quickstart guide for validating the WebSocket bridge with multiple pi instances.
 
 ## Prerequisites
 
-- Brave/Chrome with the Pi Browser Bridge extension loaded
+- Brave/Chrome with the Agent Browser Bridge extension loaded
 - `bun` installed
 - `pi` CLI available on PATH
 - This repo checked out and dependencies installed (`bun install`)
@@ -31,7 +31,7 @@ PI_BROWSER_BRIDGE_LOG_LEVEL=info bun run index.ts
 #   [INFO pi-browser-bridge] Ready on port 9242. Waiting for Chrome extension connection...
 ```
 
-The server binds to `PI_BROWSER_PORT` env var (default: `9242`).
+The server binds to `AGENT_BROWSER_PORT` env var (default: `9242`).
 
 ## 3. Verify Single Connection
 
@@ -62,7 +62,7 @@ Both sessions share the same WebSocket server and Chrome extension. The server h
 lsof -i :9242
 
 # Check extension connection in browser console
-# brave://extensions → "Pi Browser Bridge" → service worker → Console
+# brave://extensions → "Agent Browser Bridge" → service worker → Console
 
 # Enable debug logging
 PI_BROWSER_BRIDGE_LOG_LEVEL=debug bun run index.ts

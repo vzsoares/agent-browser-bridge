@@ -7,7 +7,7 @@
  * @module domain/interactions
  */
 
-import type { TypeParams } from "@pi-browser-bridge/protocol";
+import type { TypeParams } from "@agent-browser-bridge/protocol";
 import { TYPABLE_ELEMENTS } from "./constants.js";
 import {
 	collectTypableSuggestions,

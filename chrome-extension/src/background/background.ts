@@ -7,7 +7,7 @@
  * @module background
  */
 
-import { createLogger } from "@pi-browser-bridge/logger";
+import { createLogger } from "@agent-browser-bridge/logger";
 import { init } from "../infrastructure/index.js";
 
 const logger = createLogger("chrome-ext");

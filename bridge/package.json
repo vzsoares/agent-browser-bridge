@@ -1,0 +1,30 @@
+{
+	"name": "@agent-browser-bridge/bridge",
+	"version": "0.1.0",
+	"type": "module",
+	"private": true,
+	"exports": {
+		".": "./src/index.ts"
+	},
+	"bin": {
+		"agent-browser-bridge": "./src/mcp/server.ts"
+	},
+	"dependencies": {
+		"@agent-browser-bridge/logger": "workspace:*",
+		"@agent-browser-bridge/protocol": "workspace:*",
+		"@hono/node-server": "^2.0.1",
+		"@modelcontextprotocol/sdk": "^1.0.4",
+		"hono": "^4.12.16",
+		"ws": "^8.20.0",
+		"zod": "^4.4.2"
+	},
+	"scripts": {
+		"typecheck": "tsc --noEmit",
+		"start": "bun src/mcp/server.ts",
+		"benchmark": "bun run src/__tests__/benchmarks/websocket-relay.bench.ts"
+	},
+	"devDependencies": {
+		"@types/node": "^25.6.0",
+		"@types/ws": "^8.18.1"
+	}
+}

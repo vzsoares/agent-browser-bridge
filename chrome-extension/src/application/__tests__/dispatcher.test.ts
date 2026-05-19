@@ -7,7 +7,7 @@
  * @module application/__tests__/dispatcher.test
  */
 
-import type { ErrorResponse } from "@pi-browser-bridge/protocol";
+import type { ErrorResponse } from "@agent-browser-bridge/protocol";
 import { describe, expect, test } from "vitest";
 import { ALL_ACTIONS, dispatch } from "../dispatcher.js";
 

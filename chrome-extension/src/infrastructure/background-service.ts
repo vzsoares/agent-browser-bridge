@@ -14,8 +14,8 @@
  * @module infrastructure/background-service
  */
 
-import type { Logger } from "@pi-browser-bridge/logger";
-import type { Response } from "@pi-browser-bridge/protocol";
+import type { Logger } from "@agent-browser-bridge/logger";
+import type { Response } from "@agent-browser-bridge/protocol";
 import { handleScreenshot } from "../application/handle-screenshot.js";
 import { sleep } from "../domain/index.js";
 import {

@@ -7,7 +7,7 @@
  * @module domain/__tests__/interactions.test
  */
 
-import type { TypeParams } from "@pi-browser-bridge/protocol";
+import type { TypeParams } from "@agent-browser-bridge/protocol";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import type {
 	ClickError,

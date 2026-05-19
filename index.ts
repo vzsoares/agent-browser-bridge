@@ -1,21 +1,26 @@
 /**
- * pi-browser-bridge — Demo entry point.
+ * agent-browser-bridge — WebSocket-only dev runner.
  *
- * This file starts the WebSocket server and logs connection info.
- * For production use, register the pi extension via:
+ * Starts just the WebSocket server that the Chrome extension connects to.
+ * Useful for browser-side debugging (e.g. when iterating on the chrome
+ * extension without going through MCP).
  *
- *   import piExtension from "@pi-browser-bridge/pi-extension";
- *   pi.register(piExtension);
+ * To run the full MCP server (so a Claude / MCP-compatible agent can drive
+ * the browser), use the dedicated stdio entry point instead:
+ *
+ *   bun bridge/src/mcp/server.ts
+ *
+ * That entry point starts both the WebSocket bridge and the MCP server.
  */
 
-import { logger } from "@pi-browser-bridge/logger";
-import { start } from "./pi-extension/src/server.js";
+import { logger } from "@agent-browser-bridge/logger";
+import { start } from "./bridge/src/infrastructure/ws-server.js";
 
-const port = Number(process.env.PI_BROWSER_PORT) || 9242;
+const port = Number(process.env.AGENT_BROWSER_PORT) || 9242;
 
 logger.info(`Starting WebSocket server on ws://localhost:${port}`);
 const handle = await start(port);
 
 logger.info(
-	`Ready on port ${handle.port}. Waiting for Chrome extension connection...`,
+	`Ready on port ${handle.port}. Waiting for Chrome extension connection…`,
 );

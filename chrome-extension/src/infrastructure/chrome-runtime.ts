@@ -22,17 +22,17 @@ const STATUS_CONFIG: Record<
 	connected: {
 		badge: "ON",
 		color: "#22c55e",
-		title: "Pi Browser Bridge — Connected",
+		title: "Agent Browser Bridge — Connected",
 	},
 	disconnected: {
 		badge: "OFF",
 		color: "#ef4444",
-		title: "Pi Browser Bridge — Disconnected",
+		title: "Agent Browser Bridge — Disconnected",
 	},
 	connecting: {
 		badge: "···",
 		color: "#eab308",
-		title: "Pi Browser Bridge — Connecting…",
+		title: "Agent Browser Bridge — Connecting…",
 	},
 };
 

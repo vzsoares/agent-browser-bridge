@@ -16,7 +16,7 @@ Refactor pi-browser-bridge from its current monolithic structure into a Clean Ar
 ## Problem Statement
 
 As of 2026-05-02, the following are **already done**:
-- ✅ Logger (`@pi-browser-bridge/logger`) fully implemented with levels, env config, silent-by-default
+- ✅ Logger (`@agent-browser-bridge/logger`) fully implemented with levels, env config, silent-by-default
 - ✅ All `console.*` calls migrated across all packages — zero remain
 - ✅ Biome configured with `noConsole` lint rule
 - ✅ Protocol package has round-trip serialization tests

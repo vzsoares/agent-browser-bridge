@@ -9,7 +9,7 @@
 
 ## Executive Summary
 
-Replace ad-hoc `console.log/warn/error` calls in `pi-browser-bridge` with a proper shared logger. The logger is **silent by default** to keep pi's TUI clean, and can be enabled via an environment variable for debugging. Delivered as a new monorepo workspace package `@pi-browser-bridge/logger`.
+Replace ad-hoc `console.log/warn/error` calls in `pi-browser-bridge` with a proper shared logger. The logger is **silent by default** to keep pi's TUI clean, and can be enabled via an environment variable for debugging. Delivered as a new monorepo workspace package `@agent-browser-bridge/logger`.
 
 ---
 
@@ -19,7 +19,7 @@ Replace ad-hoc `console.log/warn/error` calls in `pi-browser-bridge` with a prop
 
 **Pain points:**
 - `server.ts` alone has ~30 `console.*` statements that fire on every connection, disconnection, retry, and failover event
-- pi's TUI output gets interleaved with `[pi-bridge] ...` diagnostic lines
+- pi's TUI output gets interleaved with `[bridge] ...` diagnostic lines
 - No log levels — everything is always visible or not
 - Chrome extension background/content scripts also log to the browser console indiscriminately
 
@@ -49,7 +49,7 @@ Replace ad-hoc `console.log/warn/error` calls in `pi-browser-bridge` with a prop
 
 - As a pi user, I want the browser bridge to be silent during normal operation so that pi's TUI stays clean and readable.
 - As a developer debugging bridge issues, I want to set `PI_BROWSER_BRIDGE_LOG_LEVEL=debug` to see all WebSocket lifecycle messages so that I can diagnose connection or failover problems.
-- As a contributor, I want a single `import { logger } from '@pi-browser-bridge/logger'` to use in any workspace package so that logging is consistent.
+- As a contributor, I want a single `import { logger } from '@agent-browser-bridge/logger'` to use in any workspace package so that logging is consistent.
 
 ### Should Have (P1)
 
@@ -65,7 +65,7 @@ Replace ad-hoc `console.log/warn/error` calls in `pi-browser-bridge` with a prop
 
 ### FR-1: Logger Package
 
-- A new workspace package `@pi-browser-bridge/logger` is created under `logger/`
+- A new workspace package `@agent-browser-bridge/logger` is created under `logger/`
 - It exports a default `logger` object and named `createLogger(namespace)` factory
 - Zero runtime dependencies
 - TypeScript types included
@@ -118,8 +118,8 @@ The `chrome-extension` package can optionally keep using raw `console.*` since b
 ### FR-6: Package Wiring
 
 - Root `package.json` workspaces array includes `"logger"`
-- `pi-extension/package.json` adds `"@pi-browser-bridge/logger": "workspace:*"` to dependencies
-- `chrome-extension/package.json` adds `"@pi-browser-bridge/logger": "workspace:*"` to dependencies
+- `pi-extension/package.json` adds `"@agent-browser-bridge/logger": "workspace:*"` to dependencies
+- `chrome-extension/package.json` adds `"@agent-browser-bridge/logger": "workspace:*"` to dependencies
 
 ---
 
@@ -157,7 +157,7 @@ The `chrome-extension` package can optionally keep using raw `console.*` since b
 
 ## Success Metrics
 
-- **Metric 1:** Running pi with the browser bridge extension loaded produces zero `[pi-bridge]` lines in the TUI by default
+- **Metric 1:** Running pi with the browser bridge extension loaded produces zero `[bridge]` lines in the TUI by default
 - **Metric 2:** Setting `PI_BROWSER_BRIDGE_LOG_LEVEL=debug` restores all previous `console.*` output
 - **Metric 3:** Zero `console.*` calls remain in `pi-extension/src/server.ts` and `index.ts`
 

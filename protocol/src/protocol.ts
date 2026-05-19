@@ -1,5 +1,5 @@
 /**
- * Shared WebSocket protocol types for the pi-browser-bridge.
+ * Shared WebSocket protocol types for the agent-browser-bridge.
  *
  * This package is types-only — it has zero runtime dependencies and can be
  * imported by both the pi-extension (Bun) and the chrome-extension (browser).
@@ -42,7 +42,7 @@ export type Action =
  * | `INVALID_URL` | The provided URL is malformed or missing. | Provide a fully-qualified URL like `https://example.com`. |
  * | `RESTRICTED_URL` | The URL uses a blocked scheme (chrome://, edge://, about://, etc.). | Use `https://` URLs for web pages. |
  * | `RESTRICTED_DOMAIN` | The current page's domain is not in the configured allowlist. | Add the domain to the allowlist in the extension popup or set the allowlist to `*` to allow all. |
- * | `BROWSER_NOT_CONNECTED` | No Chrome extension is connected to the WebSocket server. | Install and enable the Pi Browser Bridge Chrome extension. |
+ * | `BROWSER_NOT_CONNECTED` | No Chrome extension is connected to the WebSocket server. | Install and enable the Agent Browser Bridge Chrome extension. |
  * | `CONNECTION_RESET` | The WebSocket connection was lost during a request. | The bridge retries automatically. If it persists, restart the extension. |
  * | `UNKNOWN_ACTION` | The requested action is not recognised, or the request was malformed. | Check the action name against the supported actions: navigate, click, type, screenshot, read, exec. |
  * | `TAB_NOT_FOUND` | The specified tabId does not correspond to any open tab. | The tab may have been closed. List tabs to find a valid tabId. |

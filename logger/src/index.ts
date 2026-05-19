@@ -1,9 +1,11 @@
-/** Logger for pi-browser-bridge packages.
+/** Logger for agent-browser-bridge packages.
  *
- * Silent by default. Set `PI_BROWSER_BRIDGE_LOG_LEVEL` to enable output:
+ * Silent by default. Set `AGENT_BROWSER_BRIDGE_LOG_LEVEL` to enable output:
  *   debug < info < warn < error < silent
  *
- * Works in both Node.js and browser contexts.
+ * All output is routed to stderr so it never collides with an MCP stdio
+ * server's JSON-RPC channel on stdout. Works in both Node.js and browser
+ * contexts.
  */
 
 export type LogLevel = "debug" | "info" | "warn" | "error" | "silent";
@@ -28,7 +30,7 @@ function getLogLevelFromEnv(): LogLevel {
 		const env = (globalProcess as Record<string, unknown>).env as
 			| Record<string, unknown>
 			| undefined;
-		const raw = env?.PI_BROWSER_BRIDGE_LOG_LEVEL || "";
+		const raw = env?.AGENT_BROWSER_BRIDGE_LOG_LEVEL || "";
 		const trimmed = String(raw).trim().toLowerCase() as LogLevel;
 		if (LEVEL_ORDER.includes(trimmed)) return trimmed;
 	} catch {
@@ -74,21 +76,9 @@ class LoggerImpl implements Logger {
 		if (!this._shouldLog(level)) return;
 		const prefix = `[${formatTime()} ${level.toUpperCase()} ${this._namespace}]`;
 		const message = joinArgs(args);
-		// eslint-disable-next-line no-console
-		switch (level) {
-			case "debug":
-				console.log(prefix, message);
-				break;
-			case "info":
-				console.info(prefix, message);
-				break;
-			case "warn":
-				console.warn(prefix, message);
-				break;
-			case "error":
-				console.error(prefix, message);
-				break;
-		}
+		// Always write to stderr — stdout is reserved for the MCP JSON-RPC
+		// channel and any extra bytes there will corrupt the protocol.
+		console.error(prefix, message);
 	}
 
 	debug(...args: unknown[]): void {
@@ -108,8 +98,8 @@ class LoggerImpl implements Logger {
 	}
 }
 
-/** Default shared logger instance (namespace: `pi-browser-bridge`). */
-export const logger: Logger = new LoggerImpl("pi-browser-bridge");
+/** Default shared logger instance (namespace: `agent-browser-bridge`). */
+export const logger: Logger = new LoggerImpl("agent-browser-bridge");
 
 /** Create a namespaced logger instance. */
 export function createLogger(namespace: string): Logger {

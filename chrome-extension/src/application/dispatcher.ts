@@ -11,7 +11,7 @@
  * @module application/dispatcher
  */
 
-import type { ErrorResponse } from "@pi-browser-bridge/protocol";
+import type { ErrorResponse } from "@agent-browser-bridge/protocol";
 
 import { handleClick } from "./handle-click.js";
 import { handleExec } from "./handle-exec.js";

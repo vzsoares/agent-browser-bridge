@@ -330,7 +330,7 @@ have no first-class browser control.
   (Assumed: P2 nice-to-have, deferred)
 - [ ] Should the pi extension auto-start the WebSocket server on the default port,
   or require explicit configuration? (Assumed: auto-start on 9242, configurable
-  via environment variable `PI_BROWSER_PORT`)
+  via environment variable `AGENT_BROWSER_PORT`)
 - [ ] Should we publish both as a single pi package `pi install npm:pi-browser-extension`
   that includes setup instructions for the Chrome side? Or keep them as separate repos?
   (Assumed: monorepo with clear separation; the pi package installs the pi extension

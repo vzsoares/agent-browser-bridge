@@ -136,7 +136,7 @@ describe("chrome-runtime — setStatusBadge", () => {
 			color: "#22c55e",
 		});
 		expect(action.setTitle).toHaveBeenCalledWith({
-			title: "Pi Browser Bridge — Connected",
+			title: "Agent Browser Bridge — Connected",
 		});
 	});
 
@@ -149,7 +149,7 @@ describe("chrome-runtime — setStatusBadge", () => {
 			color: "#ef4444",
 		});
 		expect(action.setTitle).toHaveBeenCalledWith({
-			title: "Pi Browser Bridge — Disconnected",
+			title: "Agent Browser Bridge — Disconnected",
 		});
 	});
 
@@ -162,7 +162,7 @@ describe("chrome-runtime — setStatusBadge", () => {
 			color: "#eab308",
 		});
 		expect(action.setTitle).toHaveBeenCalledWith({
-			title: "Pi Browser Bridge — Connecting…",
+			title: "Agent Browser Bridge — Connecting…",
 		});
 	});
 

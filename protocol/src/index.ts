@@ -1,8 +1,8 @@
 /**
- * @pi-browser-bridge/protocol — barrel export
+ * @agent-browser-bridge/protocol — barrel export
  *
  * Re-exports every type and interface from the shared protocol module.
- * Import from `@pi-browser-bridge/protocol` to get all types.
+ * Import from `@agent-browser-bridge/protocol` to get all types.
  */
 
 export type {

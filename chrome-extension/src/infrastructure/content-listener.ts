@@ -17,11 +17,11 @@ import type {
 	ErrorCode,
 	ErrorResponse,
 	Response,
-} from "@pi-browser-bridge/protocol";
+} from "@agent-browser-bridge/protocol";
 
 // ── Types ──────────────────────────────────────────────────────────────
 
-/** Logger interface compatible with @pi-browser-bridge/logger. */
+/** Logger interface compatible with @agent-browser-bridge/logger. */
 interface Logger {
 	info(...args: unknown[]): void;
 	warn(...args: unknown[]): void;

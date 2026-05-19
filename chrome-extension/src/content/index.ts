@@ -11,7 +11,7 @@
  * @module content
  */
 
-import { createLogger } from "@pi-browser-bridge/logger";
+import { createLogger } from "@agent-browser-bridge/logger";
 import { dispatch } from "../application/dispatcher.js";
 import { matchDomain } from "../domain/allowlist.js";
 import { createContentListener } from "../infrastructure/content-listener.js";

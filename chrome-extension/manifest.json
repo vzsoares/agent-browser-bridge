@@ -1,8 +1,8 @@
 {
 	"manifest_version": 3,
-	"name": "Pi Browser Bridge",
+	"name": "Agent Browser Bridge",
 	"version": "0.1.0",
-	"description": "Bridge between the pi coding agent and the browser, enabling browser-based interactions and automation.",
+	"description": "Bridge between a coding agent (via MCP) and the browser, enabling browser automation from any MCP-compatible client.",
 	"permissions": ["activeTab", "scripting", "storage", "tabs"],
 	"host_permissions": ["<all_urls>"],
 	"background": {

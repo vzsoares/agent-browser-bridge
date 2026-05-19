@@ -19,7 +19,7 @@ import { saveBridgeConfig } from "./chrome-storage.js";
 
 // ── Types ──────────────────────────────────────────────────────────────
 
-/** Logger interface compatible with @pi-browser-bridge/logger. */
+/** Logger interface compatible with @agent-browser-bridge/logger. */
 interface Logger {
 	info(...args: unknown[]): void;
 	warn(...args: unknown[]): void;

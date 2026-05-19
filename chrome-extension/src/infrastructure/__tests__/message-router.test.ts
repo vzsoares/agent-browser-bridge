@@ -8,7 +8,7 @@
  * @module infrastructure/__tests__/message-router.test
  */
 
-import type { Response } from "@pi-browser-bridge/protocol";
+import type { Response } from "@agent-browser-bridge/protocol";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import {
 	chromeStorageMock,

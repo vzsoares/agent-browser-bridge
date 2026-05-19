@@ -197,9 +197,9 @@ interface ErrorResponse {
 
 ## WebSocket Protocol
 
-The pi extension runs a WebSocket server. The Chrome extension connects as a client. Messages are JSON with request/response correlation via `id`.
+The bridge MCP server runs a WebSocket server. The Chrome extension connects as a client. Messages are JSON with request/response correlation via `id`.
 
-### Request (pi → browser)
+### Request (bridge → browser)
 
 ```json
 {

@@ -7,7 +7,7 @@
  * @module domain/errors
  */
 
-import type { ErrorCode } from "@pi-browser-bridge/protocol";
+import type { ErrorCode } from "@agent-browser-bridge/protocol";
 
 // Re-export ErrorCode from protocol for convenience (protocol is a
 // shared types package — allowed in the domain layer).

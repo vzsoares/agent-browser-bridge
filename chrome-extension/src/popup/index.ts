@@ -1,11 +1,11 @@
-import { createLogger } from "@pi-browser-bridge/logger";
+import { createLogger } from "@agent-browser-bridge/logger";
 
 const logger = createLogger("chrome-ext:popup");
 
 // Popup script — Connection status, bridge toggle, and domain allowlist editor
 logger.info("Popup loaded");
 
-const STORAGE_KEY = "pi-browser-bridge";
+const STORAGE_KEY = "agent-browser-bridge";
 const ALLOWLIST_KEY = "domainAllowlist";
 const DEFAULT_ALLOWLIST = ["*"];
 
