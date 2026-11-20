@@ -12,8 +12,7 @@
 	"dependencies": {
 		"@agent-browser-bridge/logger": "workspace:*",
 		"@agent-browser-bridge/protocol": "workspace:*",
-		"@hono/node-server": "^2.0.1",
-		"@modelcontextprotocol/sdk": "^1.0.4",
+		"@modelcontextprotocol/sdk": "^1.29.0",
 		"hono": "^4.12.16",
 		"ws": "^8.20.0",
 		"zod": "^4.4.2"

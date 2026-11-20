@@ -224,12 +224,14 @@ describe("/client route", () => {
 			);
 			const port = await childPort(owner);
 
-			await start({
-				port,
-				clientRoute: false,
-				pairTokenFile: files.pairTokenFile,
-				clientTokenFile,
-			});
+			await expect(
+				start({
+					port,
+					clientRoute: false,
+					pairTokenFile: files.pairTokenFile,
+					clientTokenFile,
+				}),
+			).rejects.toThrow(/in use/);
 			expect(getClientSocket()).toBeNull();
 			stop();
 

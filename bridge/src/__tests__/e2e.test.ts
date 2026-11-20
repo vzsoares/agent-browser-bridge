@@ -23,15 +23,18 @@
  */
 
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
-import { send, start, stop } from "../infrastructure/ws-server.js";
-import { browserClick } from "../tools/browser-click.js";
-import { browserExec } from "../tools/browser-exec.js";
-import { browserNavigate } from "../tools/browser-navigate.js";
-import { browserRead } from "../tools/browser-read.js";
-import { browserScreenshot } from "../tools/browser-screenshot.js";
-import { browserType } from "../tools/browser-type.js";
-import { browserWaitForElement } from "../tools/browser-wait-for-element.js";
-import { browserWaitForText } from "../tools/browser-wait-for-text.js";
+import { send, stop } from "../infrastructure/ws-server.js";
+import { connectExtension, startTestBridge } from "./bridge-test-helpers.js";
+import {
+	browserClick,
+	browserExec,
+	browserNavigate,
+	browserRead,
+	browserScreenshot,
+	browserType,
+	browserWaitForElement,
+	browserWaitForText,
+} from "./mcp-tool-client.js";
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -44,30 +47,15 @@ interface SimRequest {
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
-let currentServer: ReturnType<typeof start> | null = null;
-
-/**
- * Start a fresh server on a dynamic (OS-assigned) port.
- * Stores the server for cleanup and returns the port.
- */
+/** Start a fresh server on an OS-assigned port; returns the port. */
 async function startOnDynamicPort(): Promise<number> {
 	stop();
-	currentServer = await start(0);
-	return currentServer.port;
+	return (await startTestBridge()).port;
 }
 
-/**
- * Connect a test WebSocket client to the server.
- * Resolves once the connection is open.
- */
+/** Connect an authenticated simulated extension. */
 function connectClient(port: number): Promise<WebSocket> {
-	return new Promise((resolve, reject) => {
-		const ws = new WebSocket(`ws://localhost:${port}`);
-		ws.onopen = () => resolve(ws);
-		ws.onerror = (e) =>
-			reject(new Error(`WebSocket connection failed: ${e.message}`));
-		setTimeout(() => reject(new Error("WebSocket connection timed out")), 3000);
-	});
+	return connectExtension(port);
 }
 
 /** Small sleep helper (ms). */
@@ -515,9 +503,8 @@ describe("E2E: Full round-trips", () => {
 
 			const block = result.content[0];
 			expect(block.type).toBe("image");
-			expect(block.source.type).toBe("base64");
-			expect(block.source.mediaType).toBe("image/png");
-			expect(block.source.data).toBe(SAMPLE_PNG_BASE64);
+			expect(block.mimeType).toBe("image/png");
+			expect(block.data).toBe(SAMPLE_PNG_BASE64);
 			ws.close();
 		});
 
@@ -527,7 +514,7 @@ describe("E2E: Full round-trips", () => {
 
 			const result = await browserScreenshot({ format: "jpeg", quality: 85 });
 			expectSuccess(result);
-			expect(result.content[0].source.mediaType).toBe("image/jpeg");
+			expect(result.content[0].mimeType).toBe("image/jpeg");
 			ws.close();
 		});
 
@@ -537,7 +524,7 @@ describe("E2E: Full round-trips", () => {
 
 			const result = await browserScreenshot({});
 			expectSuccess(result);
-			expect(result.content[0].source.mediaType).toBe("image/png");
+			expect(result.content[0].mimeType).toBe("image/png");
 			ws.close();
 		});
 
@@ -761,7 +748,7 @@ describe("E2E: Full round-trips", () => {
 			ws.close();
 
 			const result = await promise;
-			expectError(result, "Exec request failed");
+			expectError(result, "Exec failed");
 		});
 	});
 
@@ -775,7 +762,7 @@ describe("E2E: Full round-trips", () => {
 			});
 			expectSuccess(result);
 			expect(result.content[0].text).toContain("#dynamic-element");
-			expect(result.content[0].text).toContain("found in");
+			expect(result.content[0].text).toContain("appeared after");
 			ws.close();
 		});
 
@@ -803,7 +790,7 @@ describe("E2E: Full round-trips", () => {
 			ws.close();
 
 			const result = await promise;
-			expectError(result, "Wait request failed");
+			expectError(result, "failed: No browser extension");
 		});
 	});
 
@@ -815,7 +802,7 @@ describe("E2E: Full round-trips", () => {
 			const result = await browserWaitForText({ text: "Hello World" });
 			expectSuccess(result);
 			expect(result.content[0].text).toContain("Hello World");
-			expect(result.content[0].text).toContain("found in");
+			expect(result.content[0].text).toContain("appeared after");
 			ws.close();
 		});
 
@@ -853,7 +840,7 @@ describe("E2E: Full round-trips", () => {
 			ws.close();
 
 			const result = await promise;
-			expectError(result, "Wait request failed");
+			expectError(result, "failed: No browser extension");
 		});
 	});
 });
@@ -904,7 +891,7 @@ describe("E2E: Concurrent requests", () => {
 		// Screenshot
 		expectSuccess(ss);
 		expect(ss.content[0].type).toBe("image");
-		expect(ss.content[0].source.data).toBe(SAMPLE_PNG_BASE64);
+		expect(ss.content[0].data).toBe(SAMPLE_PNG_BASE64);
 
 		ws.close();
 	});
@@ -1059,7 +1046,7 @@ describe("E2E: Error handling", () => {
 
 			const result = await promise;
 			// BROWSER_NOT_CONNECTED is surfaced on disconnect
-			expectError(result, "Navigate request failed");
+			expectError(result, "Navigate failed");
 			expect(result.content[0].text).toContain("No browser extension");
 		});
 
@@ -1073,7 +1060,7 @@ describe("E2E: Error handling", () => {
 			ws.close();
 
 			const result = await promise;
-			expectError(result, "Click request failed");
+			expectError(result, "Click failed");
 			ws.close();
 		});
 
@@ -1258,7 +1245,7 @@ describe("E2E: Reconnection", () => {
 		await sleep(50);
 
 		const pendingResult = await pendingPromise;
-		expectError(pendingResult, "Navigate request failed");
+		expectError(pendingResult, "Navigate failed");
 		expect(pendingResult.content[0].text).toContain("No browser extension");
 
 		// Reconnect and retry
@@ -1364,7 +1351,7 @@ describe("E2E: Edge cases", () => {
 
 	test("start() uses dynamic port 0 and returns correct port", async () => {
 		stop();
-		const srv = await start(0);
+		const srv = await startTestBridge();
 
 		// Dynamic port should be in the ephemeral range
 		expect(srv.port).toBeGreaterThan(0);
@@ -1376,7 +1363,7 @@ describe("E2E: Edge cases", () => {
 	});
 
 	test("stop() is idempotent when called multiple times", async () => {
-		await start(0);
+		await startTestBridge();
 		stop();
 		stop(); // should not throw
 		stop(); // should not throw

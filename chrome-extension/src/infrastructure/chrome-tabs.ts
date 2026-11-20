@@ -187,7 +187,7 @@ export async function captureVisibleTab(
 export async function executeScriptInTab<T>(
 	tabId: number,
 	func: () => T,
-): Promise<chrome.scripting.InjectionResult<chrome.scripting.Awaited<T>>[]> {
+): Promise<chrome.scripting.InjectionResult<Awaited<T>>[]> {
 	return chrome.scripting.executeScript<[], T>({
 		target: { tabId },
 		func,

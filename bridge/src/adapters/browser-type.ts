@@ -25,6 +25,11 @@ export async function executeType(
 				"The element was not found on the page. Check the selector and try again.",
 			);
 		}
+		if (result.error.code === "ELEMENT_NOT_INTERACTABLE") {
+			extra.push(
+				"The element is not interactable (hidden, disabled or read-only).",
+			);
+		}
 		if (result.error.code === "ELEMENT_NOT_TYPABLE") {
 			extra.push(
 				"The element is not an input, textarea, or contenteditable element.",
@@ -39,9 +44,16 @@ export async function executeType(
 	}
 
 	const data = result.data;
+	if (!data.typed) {
+		const lines = [
+			`Type failed: ${data.message ?? "the element was not typed"}`,
+		];
+		if (data.suggestions) lines.push(data.suggestions);
+		return errorResult(lines.join("\n"));
+	}
 	const lines = [
 		`Typed into "${data.selector}"`,
-		`Resulting value: "${data.value}"`,
+		`Resulting value: "${data.value ?? ""}"`,
 	];
 	if (data.suggestions) lines.push(data.suggestions);
 	return textResult(lines.join("\n"));

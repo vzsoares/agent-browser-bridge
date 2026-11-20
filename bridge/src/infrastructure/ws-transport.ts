@@ -21,7 +21,7 @@ import type {
 	Request,
 	Response,
 } from "@agent-browser-bridge/protocol";
-import { type WebSocket, WebSocket as WSClient } from "ws";
+import { WebSocket as WSClient } from "ws";
 import {
 	createConnectionResetError,
 	createNotConnectedError,
@@ -34,6 +34,12 @@ import type { BridgeTransport } from "../domain/ports.js";
 import { getClientSocket } from "./ws-failover.js";
 
 const logger = createLogger("bridge:transport");
+
+/** The server-side socket surface the transport needs. */
+export interface BridgeSocket {
+	send(data: string): unknown;
+	close(code?: number, reason?: string): void;
+}
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -50,7 +56,7 @@ export type ResponseHandler = (response: Response) => void;
 // ── Module-private state ───────────────────────────────────────────────────
 
 /** Active Chrome-extension WebSocket connections (owner mode). */
-const wsConnections = new Set<WebSocket>();
+const wsConnections = new Set<BridgeSocket>();
 
 /** Pending requests keyed by their correlation id. */
 const pendingRequests = new Map<string, PendingRequest>();
@@ -62,13 +68,13 @@ const responseHandlers = new Set<ResponseHandler>();
  * Maps request id → pi client WebSocket so the owner can relay responses
  * back to the correct client.
  */
-const clientToRequest = new Map<string, WebSocket>();
+const clientToRequest = new Map<string, BridgeSocket>();
 
 /** Timeouts for client-proxied requests (owner mode). */
 const requestTimers = new Map<string, ReturnType<typeof setTimeout>>();
 
-/** Maps pi client WebSocket → assigned sequence number. */
-const clientSequences = new Map<WebSocket, number>();
+/** Maps bridge client socket → assigned sequence number. */
+const clientSequences = new Map<BridgeSocket, number>();
 
 /** Next sequence number to assign to a connecting pi client. */
 let nextClientSequence = 0;
@@ -82,12 +88,12 @@ const RETRY_DELAY_MS = 500;
 // ── Connection tracking ────────────────────────────────────────────────────
 
 /** Register a Chrome-extension WebSocket connection (owner mode). */
-export function addWsConnection(ws: WebSocket): void {
+export function addWsConnection(ws: BridgeSocket): void {
 	wsConnections.add(ws);
 }
 
 /** Unregister a Chrome-extension WebSocket connection. */
-export function removeWsConnection(ws: WebSocket): void {
+export function removeWsConnection(ws: BridgeSocket): void {
 	wsConnections.delete(ws);
 }
 
@@ -97,7 +103,7 @@ export function getWsConnectionCount(): number {
 }
 
 /** Get the first active Chrome-extension WebSocket (or undefined). */
-export function getAnyConnection(): WebSocket | undefined {
+export function getAnyConnection(): BridgeSocket | undefined {
 	return wsConnections.values().next().value;
 }
 
@@ -107,7 +113,7 @@ export function getAnyConnection(): WebSocket | undefined {
  * `CONNECTION_RESET`, since it was sent on an old socket.
  */
 export function replaceExtensionConnection(
-	ws: WebSocket,
+	ws: BridgeSocket,
 	closeCode: number,
 ): void {
 	if (wsConnections.size > 0) {
@@ -208,14 +214,14 @@ export function clearResponseHandlers(): void {
 // ── Client relay (owner mode) ──────────────────────────────────────────────
 
 /** Map a request id to the pi client that proxied it. */
-export function mapClientRequest(id: string, clientWs: WebSocket): void {
+export function mapClientRequest(id: string, clientWs: BridgeSocket): void {
 	clientToRequest.set(id, clientWs);
 }
 
 /** Start a timeout for a client-proxied request. */
 export function startClientRequestTimeout(
 	id: string,
-	clientWs: WebSocket,
+	clientWs: BridgeSocket,
 ): void {
 	const timer = setTimeout(() => {
 		clientToRequest.delete(id);
@@ -253,7 +259,7 @@ export function resolveClientRequest(id: string, data: string): void {
 }
 
 /** Clean up all relay state for a disconnected pi client. */
-export function cleanupClientRequests(clientWs: WebSocket): void {
+export function cleanupClientRequests(clientWs: BridgeSocket): void {
 	for (const [id, ws] of clientToRequest) {
 		if (ws === clientWs) {
 			clientToRequest.delete(id);
@@ -280,14 +286,14 @@ export function clearRelayState(): void {
 // ── Client sequence (owner mode) ───────────────────────────────────────────
 
 /** Assign a sequence number to a newly connected pi client. */
-export function assignClientSequence(ws: WebSocket): number {
+export function assignClientSequence(ws: BridgeSocket): number {
 	const seq = nextClientSequence++;
 	clientSequences.set(ws, seq);
 	return seq;
 }
 
 /** Remove a pi client from sequence tracking. */
-export function removeClientSequence(ws: WebSocket): number {
+export function removeClientSequence(ws: BridgeSocket): number {
 	const seq = clientSequences.get(ws) ?? -1;
 	clientSequences.delete(ws);
 	return seq;
@@ -344,8 +350,8 @@ export function handleMessage(data: string): void {
  */
 export function handleClientMessage(
 	data: string,
-	clientWs: WebSocket,
-	getConnection: () => WebSocket | undefined,
+	clientWs: BridgeSocket,
+	getConnection: () => BridgeSocket | undefined,
 ): void {
 	let message: unknown;
 	try {
@@ -496,7 +502,7 @@ function sendWithRetry<A extends Action = Action>(
  */
 function sendViaClient<A extends Action = Action>(
 	request: Request<A>,
-	clientWs: WebSocket,
+	clientWs: WSClient,
 	attempt: number,
 ): Promise<Response<A> | ErrorResponse> {
 	if (clientWs.readyState !== WSClient.OPEN) {

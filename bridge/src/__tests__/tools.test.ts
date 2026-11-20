@@ -10,18 +10,20 @@
  */
 
 import { describe, expect, test } from "bun:test";
-import { start, stop } from "../infrastructure/ws-server.js";
-import { BROWSER_CLICK_SCHEMA, browserClick } from "../tools/browser-click.js";
+import { stop } from "../infrastructure/ws-server.js";
+import { connectExtension, startTestBridge } from "./bridge-test-helpers.js";
 import {
+	BROWSER_CLICK_SCHEMA,
 	BROWSER_NAVIGATE_SCHEMA,
-	browserNavigate,
-} from "../tools/browser-navigate.js";
-import { BROWSER_READ_SCHEMA, browserRead } from "../tools/browser-read.js";
-import {
+	BROWSER_READ_SCHEMA,
 	BROWSER_SCREENSHOT_SCHEMA,
+	BROWSER_TYPE_SCHEMA,
+	browserClick,
+	browserNavigate,
+	browserRead,
 	browserScreenshot,
-} from "../tools/browser-screenshot.js";
-import { BROWSER_TYPE_SCHEMA, browserType } from "../tools/browser-type.js";
+	browserType,
+} from "./mcp-tool-client.js";
 
 // ── Integration helpers ────────────────────────────────────────────────────
 
@@ -33,16 +35,8 @@ import { BROWSER_TYPE_SCHEMA, browserType } from "../tools/browser-type.js";
 async function withServer(
 	fn: (port: number, ws: WebSocket) => Promise<void> | void,
 ): Promise<void> {
-	// Start on dynamic port
-	const srv = await start(0);
-	const port = srv.port;
-
-	const ws = await new Promise<WebSocket>((resolve, reject) => {
-		const w = new WebSocket(`ws://localhost:${port}`);
-		w.onopen = () => resolve(w);
-		w.onerror = (e) => reject(new Error(`WS connect failed: ${e.message}`));
-		setTimeout(() => reject(new Error("WS connect timeout")), 3000);
-	});
+	const { port } = await startTestBridge();
+	const ws = await connectExtension(port);
 
 	try {
 		await fn(port, ws);
@@ -93,27 +87,27 @@ describe("browser_navigate", () => {
 	describe("validation", () => {
 		test("rejects empty params", async () => {
 			const result = await browserNavigate({} as any);
-			expectError(result, "Invalid navigate parameters");
+			expectError(result, "Invalid arguments for tool browser_navigate");
 		});
 
 		test("rejects null params", async () => {
 			const result = await browserNavigate(null as any);
-			expectError(result, "Invalid navigate parameters");
+			expectError(result, "Invalid arguments for tool browser_navigate");
 		});
 
 		test("rejects non-object params", async () => {
 			const result = await browserNavigate("not-an-object" as any);
-			expectError(result, "Invalid navigate parameters");
+			expectError(result, "Invalid arguments for tool browser_navigate");
 		});
 
 		test("rejects empty url string", async () => {
 			const result = await browserNavigate({ url: "" });
-			expectError(result, "Invalid navigate parameters");
+			expectError(result, "Invalid arguments for tool browser_navigate");
 		});
 
 		test("rejects missing url", async () => {
 			const result = await browserNavigate({ waitUntil: "load" } as any);
-			expectError(result, "Invalid navigate parameters");
+			expectError(result, "Invalid arguments for tool browser_navigate");
 		});
 
 		test("rejects invalid waitUntil value", async () => {
@@ -121,7 +115,7 @@ describe("browser_navigate", () => {
 				url: "https://example.com",
 				waitUntil: "never",
 			} as any);
-			expectError(result, "Invalid navigate parameters");
+			expectError(result, "Invalid arguments for tool browser_navigate");
 		});
 
 		test("rejects non-integer timeout", async () => {
@@ -129,7 +123,7 @@ describe("browser_navigate", () => {
 				url: "https://example.com",
 				timeout: 3.14,
 			});
-			expectError(result, "Invalid navigate parameters");
+			expectError(result, "Invalid arguments for tool browser_navigate");
 		});
 
 		test("rejects non-positive timeout", async () => {
@@ -137,7 +131,7 @@ describe("browser_navigate", () => {
 				url: "https://example.com",
 				timeout: 0,
 			});
-			expectError(result, "Invalid navigate parameters");
+			expectError(result, "Invalid arguments for tool browser_navigate");
 		});
 
 		test("rejects negative timeout", async () => {
@@ -145,7 +139,7 @@ describe("browser_navigate", () => {
 				url: "https://example.com",
 				timeout: -100,
 			});
-			expectError(result, "Invalid navigate parameters");
+			expectError(result, "Invalid arguments for tool browser_navigate");
 		});
 	});
 
@@ -260,7 +254,7 @@ describe("browser_navigate", () => {
 				ws.close();
 
 				const result = await promise;
-				expectError(result, "Navigate request failed");
+				expectError(result, "Navigate failed");
 			});
 		});
 	});
@@ -288,17 +282,17 @@ describe("browser_click", () => {
 	describe("validation", () => {
 		test("rejects empty params", async () => {
 			const result = await browserClick({} as any);
-			expectError(result, "Invalid click parameters");
+			expectError(result, "Invalid arguments for tool browser_click");
 		});
 
 		test("rejects missing selector", async () => {
 			const result = await browserClick({ text: "Submit" } as any);
-			expectError(result, "Invalid click parameters");
+			expectError(result, "Invalid arguments for tool browser_click");
 		});
 
 		test("rejects empty selector", async () => {
 			const result = await browserClick({ selector: "" });
-			expectError(result, "Invalid click parameters");
+			expectError(result, "Invalid arguments for tool browser_click");
 		});
 
 		test("rejects non-string text", async () => {
@@ -306,7 +300,7 @@ describe("browser_click", () => {
 				selector: ".btn",
 				text: 123,
 			} as any);
-			expectError(result, "Invalid click parameters");
+			expectError(result, "Invalid arguments for tool browser_click");
 		});
 
 		test("rejects non-integer timeout", async () => {
@@ -314,7 +308,7 @@ describe("browser_click", () => {
 				selector: ".btn",
 				timeout: 3.14,
 			});
-			expectError(result, "Invalid click parameters");
+			expectError(result, "Invalid arguments for tool browser_click");
 		});
 
 		test("rejects negative timeout", async () => {
@@ -322,7 +316,7 @@ describe("browser_click", () => {
 				selector: ".btn",
 				timeout: -1,
 			});
-			expectError(result, "Invalid click parameters");
+			expectError(result, "Invalid arguments for tool browser_click");
 		});
 	});
 
@@ -447,17 +441,17 @@ describe("browser_type", () => {
 	describe("validation", () => {
 		test("rejects empty params", async () => {
 			const result = await browserType({} as any);
-			expectError(result, "Invalid type parameters");
+			expectError(result, "Invalid arguments for tool browser_type");
 		});
 
 		test("rejects missing text", async () => {
 			const result = await browserType({ selector: "input" } as any);
-			expectError(result, "Invalid type parameters");
+			expectError(result, "Invalid arguments for tool browser_type");
 		});
 
 		test("rejects missing selector", async () => {
 			const result = await browserType({ text: "hello" } as any);
-			expectError(result, "Invalid type parameters");
+			expectError(result, "Invalid arguments for tool browser_type");
 		});
 
 		test("rejects non-boolean clear", async () => {
@@ -466,7 +460,7 @@ describe("browser_type", () => {
 				text: "hello",
 				clear: "yes",
 			} as any);
-			expectError(result, "Invalid type parameters");
+			expectError(result, "Invalid arguments for tool browser_type");
 		});
 
 		test("rejects non-boolean submit", async () => {
@@ -475,7 +469,7 @@ describe("browser_type", () => {
 				text: "hello",
 				submit: "yes",
 			} as any);
-			expectError(result, "Invalid type parameters");
+			expectError(result, "Invalid arguments for tool browser_type");
 		});
 
 		test("rejects non-finite timeout", async () => {
@@ -484,7 +478,7 @@ describe("browser_type", () => {
 				text: "hello",
 				timeout: Infinity,
 			});
-			expectError(result, "Invalid type parameters");
+			expectError(result, "Invalid arguments for tool browser_type");
 		});
 
 		test("rejects negative timeout", async () => {
@@ -493,7 +487,7 @@ describe("browser_type", () => {
 				text: "hello",
 				timeout: -1,
 			});
-			expectError(result, "Invalid type parameters");
+			expectError(result, "Invalid arguments for tool browser_type");
 		});
 	});
 
@@ -629,7 +623,7 @@ describe("browser_read", () => {
 
 	describe("schema", () => {
 		test("has no required fields", () => {
-			expect(BROWSER_READ_SCHEMA.required).toEqual([]);
+			expect(BROWSER_READ_SCHEMA.required).toBeUndefined();
 		});
 
 		test("maxLength has minimum 1", () => {
@@ -642,17 +636,17 @@ describe("browser_read", () => {
 	describe("validation", () => {
 		test("rejects non-string selector", async () => {
 			const result = await browserRead({ selector: 123 } as any);
-			expectError(result, "Invalid read parameters");
+			expectError(result, "Invalid arguments for tool browser_read");
 		});
 
 		test("rejects non-integer maxLength", async () => {
 			const result = await browserRead({ maxLength: 1.5 } as any);
-			expectError(result, "Invalid read parameters");
+			expectError(result, "Invalid arguments for tool browser_read");
 		});
 
 		test("rejects maxLength zero", async () => {
 			const result = await browserRead({ maxLength: 0 });
-			expectError(result, "Invalid read parameters");
+			expectError(result, "Invalid arguments for tool browser_read");
 		});
 	});
 
@@ -753,7 +747,7 @@ describe("browser_screenshot", () => {
 
 	describe("schema", () => {
 		test("has no required fields", () => {
-			expect(BROWSER_SCREENSHOT_SCHEMA.required).toEqual([]);
+			expect(BROWSER_SCREENSHOT_SCHEMA.required).toBeUndefined();
 		});
 
 		test("format enum is png | jpeg", () => {
@@ -774,27 +768,27 @@ describe("browser_screenshot", () => {
 	describe("validation", () => {
 		test("rejects invalid format", async () => {
 			const result = await browserScreenshot({ format: "gif" } as any);
-			expectError(result, "Invalid screenshot parameters");
+			expectError(result, "Invalid arguments for tool browser_screenshot");
 		});
 
 		test("rejects quality below 0", async () => {
 			const result = await browserScreenshot({ quality: -1 });
-			expectError(result, "Invalid screenshot parameters");
+			expectError(result, "Invalid arguments for tool browser_screenshot");
 		});
 
 		test("rejects quality above 100", async () => {
 			const result = await browserScreenshot({ quality: 101 });
-			expectError(result, "Invalid screenshot parameters");
+			expectError(result, "Invalid arguments for tool browser_screenshot");
 		});
 
 		test("rejects non-integer quality", async () => {
 			const result = await browserScreenshot({ quality: 80.5 });
-			expectError(result, "Invalid screenshot parameters");
+			expectError(result, "Invalid arguments for tool browser_screenshot");
 		});
 
 		test("rejects non-boolean fullPage", async () => {
 			const result = await browserScreenshot({ fullPage: "yes" } as any);
-			expectError(result, "Invalid screenshot parameters");
+			expectError(result, "Invalid arguments for tool browser_screenshot");
 		});
 	});
 
@@ -821,9 +815,8 @@ describe("browser_screenshot", () => {
 
 				const block = result.content[0];
 				expect(block.type).toBe("image");
-				expect(block.source.type).toBe("base64");
-				expect(block.source.mediaType).toBe("image/png");
-				expect(block.source.data).toBe("iVBORw0KGgo=");
+				expect(block.mimeType).toBe("image/png");
+				expect(block.data).toBe("iVBORw0KGgo=");
 			});
 		});
 
@@ -844,7 +837,7 @@ describe("browser_screenshot", () => {
 					quality: 90,
 				});
 				expectSuccess(result);
-				expect(result.content[0].source.mediaType).toBe("image/jpeg");
+				expect(result.content[0].mimeType).toBe("image/jpeg");
 			});
 		});
 

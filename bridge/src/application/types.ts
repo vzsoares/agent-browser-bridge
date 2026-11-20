@@ -55,7 +55,9 @@ export interface ClickResult {
 export interface TypeResult {
 	typed: boolean;
 	selector: string;
-	value: string;
+	value?: string;
+	/** Present when `typed` is false. */
+	message?: string;
 	suggestions?: string;
 }
 

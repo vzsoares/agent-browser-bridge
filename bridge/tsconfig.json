@@ -2,7 +2,7 @@
 	"extends": "../tsconfig.json",
 	"compilerOptions": {
 		"lib": ["ESNext", "DOM"],
-		"types": ["node"]
+		"types": ["bun"]
 	},
 	"include": ["src"],
 	"exclude": ["src/__tests__"]
