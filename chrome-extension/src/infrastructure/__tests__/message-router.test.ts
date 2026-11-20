@@ -234,6 +234,7 @@ describe("createMessageRouter — message parsing and validation", () => {
 			"waitForText",
 			"listTabs",
 			"closeTab",
+			"createTab",
 		];
 
 		for (const action of validActions) {
@@ -259,6 +260,12 @@ describe("createMessageRouter — message parsing and validation", () => {
 				handleScreenshot,
 				handleListTabs,
 				handleCloseTab,
+				handleCreateTab: vi
+					.fn()
+					.mockResolvedValue({ id: "req-1", result: { tabId: 2 } }),
+				handleExec: vi
+					.fn()
+					.mockResolvedValue({ id: "req-1", result: { serialized: "1" } }),
 			});
 
 			// Set up tabs for non-navigate/screenshot actions
@@ -749,16 +756,15 @@ describe("createMessageRouter — content script forwarding", () => {
 		expect((resp?.result as any)?.text).toBe("Page content");
 	});
 
-	test("forwards exec action to content script", async () => {
+	test("routes exec to the service-worker handler with the target tabId", async () => {
 		const wsClient = createMockWsClient();
-
-		chromeTabsMock.sendMessage.mockResolvedValue({
+		const handleExec = vi.fn().mockResolvedValue({
 			id: "req-4",
 			result: { value: 5, serialized: "5" },
 		});
 
 		const handleMessage = createMessageRouter(
-			createRouterOptions({ wsClient }),
+			createRouterOptions({ wsClient, handleExec }),
 		);
 
 		await handleMessage(
@@ -769,8 +775,8 @@ describe("createMessageRouter — content script forwarding", () => {
 			}),
 		);
 
+		expect(handleExec).toHaveBeenCalledWith("req-4", { code: "2+3", tabId: 1 });
 		const resp = getSentResponse(wsClient);
-		expect(resp?.result).toBeDefined();
 		expect((resp?.result as any)?.value).toBe(5);
 	});
 
@@ -1156,5 +1162,44 @@ describe("createMessageRouter — edge cases", () => {
 		// Navigate should not change activeTabId
 		expect(activeTabId.current).toBe(1);
 		expect(enabled.current).toBe(true);
+	});
+});
+
+// ── Action log ───────────────────────────────────────────────────────────
+
+describe("createMessageRouter — action log", () => {
+	test("logs each handled request without page content", async () => {
+		const wsClient = createMockWsClient();
+		chromeTabsMock.setTabs([
+			{ id: 1, url: "https://example.com/inbox?q=secret", active: true },
+		]);
+		chromeTabsMock.sendMessage.mockResolvedValue({
+			id: "log-1",
+			result: { clicked: true, text: "private page text" },
+		});
+		const handleMessage = createMessageRouter(
+			createRouterOptions({ wsClient }),
+		);
+
+		await handleMessage(
+			JSON.stringify({
+				id: "log-1",
+				action: "click",
+				params: { selector: "#go" },
+			}),
+		);
+
+		const log = chromeStorageMock.getStore().actionLog;
+		expect(log).toEqual([
+			expect.objectContaining({
+				action: "click",
+				tabId: 1,
+				url: "https://example.com/inbox",
+				selector: "#go",
+				ok: true,
+				error: null,
+			}),
+		]);
+		expect(JSON.stringify(log)).not.toContain("private page text");
 	});
 });

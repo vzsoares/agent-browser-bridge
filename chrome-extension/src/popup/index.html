@@ -9,7 +9,7 @@
   <body>
     <header class="header">
       <span class="title">Agent Browser Bridge</span>
-      <span class="version">v0.1.0</span>
+      <span id="version" class="version"></span>
     </header>
 
     <main class="main">
@@ -36,6 +36,17 @@
           <span class="toggle-slider"></span>
           <span class="toggle-label">Bridge enabled</span>
         </label>
+      </section>
+
+      <!-- Pairing token -->
+      <section class="pair-section">
+        <label for="pair-token">Pairing token</label>
+        <div class="pair-row">
+          <input type="password" id="pair-token" autocomplete="off" spellcheck="false"
+            placeholder="Paste ~/.config/agent-browser-bridge/pair.token" />
+          <button id="pair-save" type="button" class="primary">Save</button>
+        </div>
+        <div id="pair-state" class="hint"></div>
       </section>
 
       <!-- Controlled Tabs -->
@@ -68,11 +79,23 @@
         <button id="save" class="primary" type="button">Save</button>
       </div>
       <div id="status-msg" class="status"></div>
+
+      <!-- Action log -->
+      <section class="log-section">
+        <div class="tabs-header">
+          <span class="tabs-title">Action log (last 50)</span>
+        </div>
+        <ol id="action-log" class="action-log"></ol>
+        <div class="actions">
+          <button id="log-clear" type="button">Clear</button>
+          <button id="log-download" type="button">Download JSONL</button>
+        </div>
+      </section>
     </main>
 
     <footer class="footer">
       <span class="footer-credit">Agent Browser Bridge</span>
-      <a class="footer-link" href="https://github.com/marco-souza/agent-browser-bridge" target="_blank">GitHub</a>
+      <a class="footer-link" href="https://github.com/vzsoares/agent-browser-bridge" target="_blank">GitHub</a>
     </footer>
 
     <script type="module" src="./index.ts"></script>

@@ -32,6 +32,8 @@ export interface WebSocketClientOptions {
 	port: number;
 	/** Logger instance. */
 	logger: Logger;
+	/** Current pairing token, or null when the user has not pasted one. */
+	getToken: () => string | null;
 	/** Callback for every incoming message (raw string). */
 	onMessage: (data: string) => void;
 	/** Optional callback when connection status changes. */
@@ -44,7 +46,13 @@ export interface WebSocketClientOptions {
 const KEEP_ALIVE_INTERVAL = 20_000;
 
 /** Maximum reconnect backoff (ms). */
-const MAX_BACKOFF = 30_000;
+const MAX_BACKOFF = 5_000;
+
+/** Bridge close code for a missing, wrong or late pairing token. */
+export const UNAUTHORIZED_CLOSE_CODE = 4401;
+
+/** Bridge close code when a newer extension connection took over. */
+export const REPLACED_CLOSE_CODE = 4000;
 
 /** Initial backoff (ms). */
 const INITIAL_BACKOFF = 1_000;
@@ -55,6 +63,7 @@ export class WebSocketClient {
 	private ws: WebSocket | null = null;
 	private port: number;
 	private logger: Logger;
+	private getToken: () => string | null;
 	private onMessage: (data: string) => void;
 	private onStatusChange?: (status: ConnectionStatus) => void;
 
@@ -65,6 +74,7 @@ export class WebSocketClient {
 	constructor(options: WebSocketClientOptions) {
 		this.port = options.port;
 		this.logger = options.logger;
+		this.getToken = options.getToken;
 		this.onMessage = options.onMessage;
 		this.onStatusChange = options.onStatusChange;
 	}
@@ -85,10 +95,16 @@ export class WebSocketClient {
 	connect(): void {
 		this.cancelReconnect();
 		this.stopKeepAlive();
-		this.updateStatus("connecting");
-
 		// Suppress stale events from an existing connection before replacing it.
 		this.cleanupStaleSocket();
+
+		const token = this.getToken();
+		if (!token) {
+			this.logger.warn("No pairing token — not connecting");
+			this.updateStatus("unpaired");
+			return;
+		}
+		this.updateStatus("connecting");
 
 		const url = `ws://localhost:${this.port}`;
 		this.logger.info(`Connecting to ${url}…`);
@@ -101,7 +117,9 @@ export class WebSocketClient {
 			return;
 		}
 
+		const socket = this.ws;
 		this.ws.onopen = () => {
+			socket.send(JSON.stringify({ type: "hello", token }));
 			this.logger.info("WebSocket connected");
 			this.reconnectAttempt = 0;
 			this.startKeepAlive();
@@ -115,11 +133,12 @@ export class WebSocketClient {
 			this.stopKeepAlive();
 			this.ws = null;
 
-			if (event.code !== 1000) {
-				// 1000 = Normal Closure — don't reconnect for intentional shutdown.
-				this.scheduleReconnect();
-			} else {
+			if (event.code === UNAUTHORIZED_CLOSE_CODE) {
+				this.updateStatus("unpaired");
+			} else if (event.code === REPLACED_CLOSE_CODE) {
 				this.updateStatus("disconnected");
+			} else {
+				this.scheduleReconnect();
 			}
 		};
 

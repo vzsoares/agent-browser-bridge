@@ -21,6 +21,7 @@ import {
 	onTabActivated,
 	onTabRemoved,
 	setStatusBadge,
+	trackBusy,
 } from "../chrome-runtime.js";
 
 import {
@@ -146,10 +147,10 @@ describe("chrome-runtime — setStatusBadge", () => {
 		const action = (globalThis as any).chrome.action;
 		expect(action.setBadgeText).toHaveBeenCalledWith({ text: "OFF" });
 		expect(action.setBadgeBackgroundColor).toHaveBeenCalledWith({
-			color: "#ef4444",
+			color: "#6b7280",
 		});
 		expect(action.setTitle).toHaveBeenCalledWith({
-			title: "Agent Browser Bridge — Disconnected",
+			title: "Agent Browser Bridge — Off",
 		});
 	});
 
@@ -157,13 +158,43 @@ describe("chrome-runtime — setStatusBadge", () => {
 		await setStatusBadge("connecting");
 
 		const action = (globalThis as any).chrome.action;
-		expect(action.setBadgeText).toHaveBeenCalledWith({ text: "···" });
+		expect(action.setBadgeText).toHaveBeenCalledWith({ text: "…" });
 		expect(action.setBadgeBackgroundColor).toHaveBeenCalledWith({
-			color: "#eab308",
+			color: "#f59e0b",
 		});
 		expect(action.setTitle).toHaveBeenCalledWith({
 			title: "Agent Browser Bridge — Connecting…",
 		});
+	});
+
+	test("sets the not-paired badge for 'unpaired'", async () => {
+		await setStatusBadge("unpaired");
+
+		const action = (globalThis as any).chrome.action;
+		expect(action.setBadgeText).toHaveBeenCalledWith({ text: "KEY" });
+		expect(action.setBadgeBackgroundColor).toHaveBeenCalledWith({
+			color: "#ef4444",
+		});
+	});
+
+	test("shows the busy colour while a request runs, only when connected", async () => {
+		const action = (globalThis as any).chrome.action;
+		await setStatusBadge("connected");
+		await trackBusy(1);
+		expect(action.setBadgeBackgroundColor).toHaveBeenLastCalledWith({
+			color: "#3b82f6",
+		});
+		await trackBusy(-1);
+		expect(action.setBadgeBackgroundColor).toHaveBeenLastCalledWith({
+			color: "#22c55e",
+		});
+
+		await setStatusBadge("disconnected");
+		await trackBusy(1);
+		expect(action.setBadgeBackgroundColor).toHaveBeenLastCalledWith({
+			color: "#6b7280",
+		});
+		await trackBusy(-1);
 	});
 
 	test("handles chrome.action errors gracefully", async () => {

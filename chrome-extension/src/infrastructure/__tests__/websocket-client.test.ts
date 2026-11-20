@@ -76,6 +76,7 @@ describe("WebSocketClient — connection lifecycle", () => {
 	test("connect() creates a WebSocket with the correct URL", () => {
 		const logger = createSpyLogger();
 		const client = new WebSocketClient({
+			getToken: () => "test-token",
 			port: 9242,
 			logger,
 			onMessage: vi.fn(),
@@ -93,6 +94,7 @@ describe("WebSocketClient — connection lifecycle", () => {
 		const logger = createSpyLogger();
 		const onStatusChange = vi.fn();
 		const client = new WebSocketClient({
+			getToken: () => "test-token",
 			port: 9242,
 			logger,
 			onMessage: vi.fn(),
@@ -113,6 +115,7 @@ describe("WebSocketClient — connection lifecycle", () => {
 
 	test("isOpen() returns true when connected and onopen fired", () => {
 		const client = new WebSocketClient({
+			getToken: () => "test-token",
 			port: 9242,
 			logger: createSpyLogger(),
 			onMessage: vi.fn(),
@@ -126,6 +129,7 @@ describe("WebSocketClient — connection lifecycle", () => {
 
 	test("isOpen() returns false when not connected", () => {
 		const client = new WebSocketClient({
+			getToken: () => "test-token",
 			port: 9242,
 			logger: createSpyLogger(),
 			onMessage: vi.fn(),
@@ -137,6 +141,7 @@ describe("WebSocketClient — connection lifecycle", () => {
 
 	test("setPort() updates the port", () => {
 		const client = new WebSocketClient({
+			getToken: () => "test-token",
 			port: 9242,
 			logger: createSpyLogger(),
 			onMessage: vi.fn(),
@@ -157,6 +162,7 @@ describe("WebSocketClient — reconnect behavior", () => {
 		const logger = createSpyLogger();
 		const onStatusChange = vi.fn();
 		const client = new WebSocketClient({
+			getToken: () => "test-token",
 			port: 9242,
 			logger,
 			onMessage: vi.fn(),
@@ -183,31 +189,51 @@ describe("WebSocketClient — reconnect behavior", () => {
 		);
 	});
 
-	test("does NOT reconnect on close code 1000 (normal closure)", async () => {
+	test("reconnects when the bridge closes normally (1000)", async () => {
 		vi.useFakeTimers();
 
-		const logger = createSpyLogger();
+		const client = new WebSocketClient({
+			getToken: () => "test-token",
+			port: 9242,
+			logger: createSpyLogger(),
+			onMessage: vi.fn(),
+		});
+
+		client.connect();
+		simulateOpen();
+		wsSpy.mockClear();
+
+		// The bridge exits at the end of every agent session.
+		getWsInstance().simulateClose(1000, "Server shutting down");
+		await vi.advanceTimersByTimeAsync(1100);
+
+		expect(wsSpy).toHaveBeenCalledTimes(1);
+	});
+
+	test.each([
+		[4401, "unpaired"],
+		[4000, "disconnected"],
+	])("does NOT reconnect on close code %i", async (code, status) => {
+		vi.useFakeTimers();
+
 		const onStatusChange = vi.fn();
 		const client = new WebSocketClient({
+			getToken: () => "test-token",
 			port: 9242,
-			logger,
+			logger: createSpyLogger(),
 			onMessage: vi.fn(),
 			onStatusChange,
 		});
 
 		client.connect();
 		simulateOpen();
-
 		wsSpy.mockClear();
 
-		// Simulate a normal close (code 1000)
-		getWsInstance().simulateClose(1000, "Normal closure");
-
-		// Advance time — no reconnect should fire
-		await vi.advanceTimersByTimeAsync(2000);
+		getWsInstance().simulateClose(code, "");
+		await vi.advanceTimersByTimeAsync(10_000);
 
 		expect(wsSpy).not.toHaveBeenCalled();
-		expect(onStatusChange).toHaveBeenCalledWith("disconnected");
+		expect(onStatusChange).toHaveBeenLastCalledWith(status);
 	});
 
 	test("exponential backoff increases on repeated failures", async () => {
@@ -215,6 +241,7 @@ describe("WebSocketClient — reconnect behavior", () => {
 
 		const logger = createSpyLogger();
 		const client = new WebSocketClient({
+			getToken: () => "test-token",
 			port: 9242,
 			logger,
 			onMessage: vi.fn(),
@@ -242,11 +269,12 @@ describe("WebSocketClient — reconnect behavior", () => {
 		);
 	});
 
-	test("reconnect backoff capped at 30 seconds", async () => {
+	test("reconnect backoff capped at 5 seconds", async () => {
 		vi.useFakeTimers();
 
 		const logger = createSpyLogger();
 		const client = new WebSocketClient({
+			getToken: () => "test-token",
 			port: 9242,
 			logger,
 			onMessage: vi.fn(),
@@ -255,45 +283,18 @@ describe("WebSocketClient — reconnect behavior", () => {
 		client.connect();
 		simulateOpen();
 
-		// Trigger 6 consecutive close-reconnect cycles WITHOUT simulating open
-		// between them. This way the reconnectAttempt counter keeps incrementing
-		// and the backoff grows: 1s, 2s, 4s, 8s, 16s, 30s (capped).
+		// No open between failures, so backoff grows: 1s, 2s, 4s, 5s, 5s.
+		for (const wait of [1100, 2100, 4100, 5100, 5100]) {
+			getWsInstance().simulateClose(1006, "Fail");
+			await vi.advanceTimersByTimeAsync(wait);
+		}
 
-		// Cycle 1: close → reconnect in 1000ms (attempt 1)
-		getWsInstance().simulateClose(1006, "Fail");
-		await vi.advanceTimersByTimeAsync(1100);
-
-		// Cycle 2: close the reconnected socket → reconnect in 2000ms (attempt 2)
-		getWsInstance().simulateClose(1006, "Fail");
-		await vi.advanceTimersByTimeAsync(2100);
-
-		// Cycle 3: close → reconnect in 4000ms (attempt 3)
-		getWsInstance().simulateClose(1006, "Fail");
-		await vi.advanceTimersByTimeAsync(4100);
-
-		// Cycle 4: close → reconnect in 8000ms (attempt 4)
-		getWsInstance().simulateClose(1006, "Fail");
-		await vi.advanceTimersByTimeAsync(8100);
-
-		// Cycle 5: close → reconnect in 16000ms (attempt 5)
-		getWsInstance().simulateClose(1006, "Fail");
-		await vi.advanceTimersByTimeAsync(16100);
-
-		// Cycle 6: close → reconnect should be capped at 30000ms (attempt 6)
-		getWsInstance().simulateClose(1006, "Fail");
-		await vi.advanceTimersByTimeAsync(30100);
-
-		const logCalls = logger.info.mock.calls.filter(
-			(c: any[]) => typeof c[0] === "string" && c[0].includes("Reconnecting"),
-		);
-
-		// Should see 6 reconnect attempts
-		expect(logCalls.length).toBeGreaterThanOrEqual(6);
-
-		// The last attempt should mention 30000ms (capped)
-		const lastCall = logCalls[logCalls.length - 1]?.[0] as string | undefined;
-		expect(lastCall).toBeDefined();
-		expect(lastCall).toContain("30000ms");
+		const delays = logger.info.mock.calls
+			.map((c: unknown[]) => c[0])
+			.filter((m): m is string => typeof m === "string")
+			.filter((m) => m.includes("Reconnecting"))
+			.map((m) => Number(m.match(/in (\d+)ms/)?.[1]));
+		expect(delays).toEqual([1000, 2000, 4000, 5000, 5000]);
 	});
 
 	test("reconnect attempt counter resets on successful connection", async () => {
@@ -301,6 +302,7 @@ describe("WebSocketClient — reconnect behavior", () => {
 
 		const logger = createSpyLogger();
 		const client = new WebSocketClient({
+			getToken: () => "test-token",
 			port: 9242,
 			logger,
 			onMessage: vi.fn(),
@@ -332,6 +334,7 @@ describe("WebSocketClient — reconnect behavior", () => {
 
 		const logger = createSpyLogger();
 		const client = new WebSocketClient({
+			getToken: () => "test-token",
 			port: 9242,
 			logger,
 			onMessage: vi.fn(),
@@ -359,6 +362,7 @@ describe("WebSocketClient — reconnect behavior", () => {
 describe("WebSocketClient — sending messages", () => {
 	test("send() forwards data to the underlying WebSocket when open", () => {
 		const client = new WebSocketClient({
+			getToken: () => "test-token",
 			port: 9242,
 			logger: createSpyLogger(),
 			onMessage: vi.fn(),
@@ -370,12 +374,14 @@ describe("WebSocketClient — sending messages", () => {
 		client.send('{"type":"test"}');
 
 		expect(getWsInstance().send).toHaveBeenCalledWith('{"type":"test"}');
-		expect(getWsInstance().sent).toHaveLength(1);
+		// The hello is always the first frame.
+		expect(getWsInstance().sent).toHaveLength(2);
 	});
 
 	test("send() is a no-op when not connected (no connect call)", () => {
 		const logger = createSpyLogger();
 		const client = new WebSocketClient({
+			getToken: () => "test-token",
 			port: 9242,
 			logger,
 			onMessage: vi.fn(),
@@ -392,6 +398,7 @@ describe("WebSocketClient — sending messages", () => {
 	test("send() is a no-op after disconnect()", () => {
 		const logger = createSpyLogger();
 		const client = new WebSocketClient({
+			getToken: () => "test-token",
 			port: 9242,
 			logger,
 			onMessage: vi.fn(),
@@ -410,6 +417,7 @@ describe("WebSocketClient — sending messages", () => {
 	test("send() is a no-op when WebSocket is in CLOSED state", () => {
 		const logger = createSpyLogger();
 		const client = new WebSocketClient({
+			getToken: () => "test-token",
 			port: 9242,
 			logger,
 			onMessage: vi.fn(),
@@ -434,6 +442,7 @@ describe("WebSocketClient — receiving messages", () => {
 	test("forwards incoming string messages to onMessage callback", () => {
 		const onMessage = vi.fn();
 		const client = new WebSocketClient({
+			getToken: () => "test-token",
 			port: 9242,
 			logger: createSpyLogger(),
 			onMessage,
@@ -449,6 +458,7 @@ describe("WebSocketClient — receiving messages", () => {
 	test("passes string message data to onMessage", () => {
 		const onMessage = vi.fn();
 		const client = new WebSocketClient({
+			getToken: () => "test-token",
 			port: 9242,
 			logger: createSpyLogger(),
 			onMessage,
@@ -467,6 +477,7 @@ describe("WebSocketClient — receiving messages", () => {
 			throw new Error("callback exploded");
 		});
 		const client = new WebSocketClient({
+			getToken: () => "test-token",
 			port: 9242,
 			logger,
 			onMessage,
@@ -490,6 +501,7 @@ describe("WebSocketClient — keep-alive", () => {
 		vi.useFakeTimers();
 
 		const client = new WebSocketClient({
+			getToken: () => "test-token",
 			port: 9242,
 			logger: createSpyLogger(),
 			onMessage: vi.fn(),
@@ -516,6 +528,7 @@ describe("WebSocketClient — keep-alive", () => {
 		vi.useFakeTimers();
 
 		const client = new WebSocketClient({
+			getToken: () => "test-token",
 			port: 9242,
 			logger: createSpyLogger(),
 			onMessage: vi.fn(),
@@ -540,6 +553,7 @@ describe("WebSocketClient — keep-alive", () => {
 		vi.useFakeTimers();
 
 		const client = new WebSocketClient({
+			getToken: () => "test-token",
 			port: 9242,
 			logger: createSpyLogger(),
 			onMessage: vi.fn(),
@@ -564,6 +578,7 @@ describe("WebSocketClient — status changes", () => {
 	test("calls onStatusChange with 'connecting' on connect()", () => {
 		const onStatusChange = vi.fn();
 		const client = new WebSocketClient({
+			getToken: () => "test-token",
 			port: 9242,
 			logger: createSpyLogger(),
 			onMessage: vi.fn(),
@@ -579,6 +594,7 @@ describe("WebSocketClient — status changes", () => {
 	test("calls onStatusChange with 'connected' on successful open", () => {
 		const onStatusChange = vi.fn();
 		const client = new WebSocketClient({
+			getToken: () => "test-token",
 			port: 9242,
 			logger: createSpyLogger(),
 			onMessage: vi.fn(),
@@ -600,9 +616,10 @@ describe("WebSocketClient — status changes", () => {
 		expect(onStatusChange).toHaveBeenCalledTimes(connectingCalls + 1);
 	});
 
-	test("calls onStatusChange with 'disconnected' on close code 1000", () => {
+	test("calls onStatusChange with 'disconnected' when replaced (4000)", () => {
 		const onStatusChange = vi.fn();
 		const client = new WebSocketClient({
+			getToken: () => "test-token",
 			port: 9242,
 			logger: createSpyLogger(),
 			onMessage: vi.fn(),
@@ -613,7 +630,7 @@ describe("WebSocketClient — status changes", () => {
 		simulateOpen();
 
 		onStatusChange.mockClear();
-		getWsInstance().simulateClose(1000, "Normal closure");
+		getWsInstance().simulateClose(4000, "Replaced");
 
 		expect(onStatusChange).toHaveBeenCalledWith("disconnected");
 	});
@@ -623,6 +640,7 @@ describe("WebSocketClient — status changes", () => {
 
 		const onStatusChange = vi.fn();
 		const client = new WebSocketClient({
+			getToken: () => "test-token",
 			port: 9242,
 			logger: createSpyLogger(),
 			onMessage: vi.fn(),
@@ -654,6 +672,7 @@ describe("WebSocketClient — status changes", () => {
 describe("WebSocketClient — lifecycle edge cases", () => {
 	test("connect() cleans up stale socket before creating a new one", () => {
 		const client = new WebSocketClient({
+			getToken: () => "test-token",
 			port: 9242,
 			logger: createSpyLogger(),
 			onMessage: vi.fn(),
@@ -684,6 +703,7 @@ describe("WebSocketClient — lifecycle edge cases", () => {
 
 		const logger = createSpyLogger();
 		const client = new WebSocketClient({
+			getToken: () => "test-token",
 			port: 9242,
 			logger,
 			onMessage: vi.fn(),
@@ -700,6 +720,7 @@ describe("WebSocketClient — lifecycle edge cases", () => {
 		vi.useFakeTimers();
 
 		const client = new WebSocketClient({
+			getToken: () => "test-token",
 			port: 9242,
 			logger: createSpyLogger(),
 			onMessage: vi.fn(),
@@ -724,6 +745,7 @@ describe("WebSocketClient — lifecycle edge cases", () => {
 	test("handles error event without crashing", () => {
 		const logger = createSpyLogger();
 		const client = new WebSocketClient({
+			getToken: () => "test-token",
 			port: 9242,
 			logger,
 			onMessage: vi.fn(),
@@ -742,6 +764,7 @@ describe("WebSocketClient — lifecycle edge cases", () => {
 	test("connect() uses the port set by setPort()", () => {
 		const logger = createSpyLogger();
 		const client = new WebSocketClient({
+			getToken: () => "test-token",
 			port: 9242,
 			logger,
 			onMessage: vi.fn(),
@@ -751,5 +774,58 @@ describe("WebSocketClient — lifecycle edge cases", () => {
 		client.connect();
 
 		expect(wsSpy).toHaveBeenCalledWith("ws://localhost:8080");
+	});
+});
+
+// ── Pairing ──────────────────────────────────────────────────────────────
+
+describe("WebSocketClient — pairing token", () => {
+	test("sends the hello with the token as the first frame", () => {
+		const client = new WebSocketClient({
+			getToken: () => "pair-token",
+			port: 9242,
+			logger: createSpyLogger(),
+			onMessage: vi.fn(),
+		});
+
+		client.connect();
+		simulateOpen();
+
+		expect(getWsInstance().sent[0]?.data).toBe(
+			JSON.stringify({ type: "hello", token: "pair-token" }),
+		);
+	});
+
+	test("does not connect without a token and reports unpaired", () => {
+		const onStatusChange = vi.fn();
+		const client = new WebSocketClient({
+			getToken: () => null,
+			port: 9242,
+			logger: createSpyLogger(),
+			onMessage: vi.fn(),
+			onStatusChange,
+		});
+
+		client.connect();
+
+		expect(wsSpy).not.toHaveBeenCalled();
+		expect(onStatusChange).toHaveBeenLastCalledWith("unpaired");
+	});
+
+	test("a 4401 close shows not paired", () => {
+		const onStatusChange = vi.fn();
+		const client = new WebSocketClient({
+			getToken: () => "wrong",
+			port: 9242,
+			logger: createSpyLogger(),
+			onMessage: vi.fn(),
+			onStatusChange,
+		});
+
+		client.connect();
+		simulateOpen();
+		getWsInstance().simulateClose(4401, "Unauthorized");
+
+		expect(onStatusChange).toHaveBeenLastCalledWith("unpaired");
 	});
 });

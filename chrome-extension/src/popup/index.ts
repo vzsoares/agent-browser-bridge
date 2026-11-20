@@ -1,4 +1,18 @@
 import { createLogger } from "@agent-browser-bridge/logger";
+import {
+	ACTION_LOG_KEY,
+	type ActionLogEntry,
+	clearActionLog,
+	readActionLog,
+	toJsonl,
+} from "../infrastructure/action-log.js";
+import {
+	type ConnectionStatus,
+	getPairToken,
+	isConnectionStatus,
+	PAIR_TOKEN_KEY,
+	savePairToken,
+} from "../infrastructure/chrome-storage.js";
 
 const logger = createLogger("chrome-ext:popup");
 
@@ -61,7 +75,12 @@ function setStatusMessage(message: string, success: boolean): void {
 	}, 3000);
 }
 
-type ConnectionStatus = "connected" | "disconnected" | "connecting";
+const STATUS_LABELS: Record<ConnectionStatus, string> = {
+	connected: "Connected",
+	connecting: "Connecting…",
+	disconnected: "Off",
+	unpaired: "Not paired — paste the pairing token",
+};
 
 function updateStatusUI(status: ConnectionStatus, connectedAt?: string): void {
 	if (statusDot) {
@@ -69,12 +88,7 @@ function updateStatusUI(status: ConnectionStatus, connectedAt?: string): void {
 	}
 	if (statusLabel) {
 		statusLabel.className = `status-label ${status}`;
-		statusLabel.textContent =
-			status === "connected"
-				? "Connected"
-				: status === "connecting"
-					? "Connecting…"
-					: "Disconnected";
+		statusLabel.textContent = STATUS_LABELS[status];
 	}
 	if (infoConnected && connectedAt) {
 		infoConnected.style.display = "flex";
@@ -95,8 +109,9 @@ async function loadBridgeState(): Promise<void> {
 		const cfg = stored[STORAGE_KEY] as Record<string, unknown> | undefined;
 
 		if (cfg) {
-			const status =
-				(cfg.connectionStatus as ConnectionStatus) ?? "disconnected";
+			const status = isConnectionStatus(cfg.connectionStatus)
+				? cfg.connectionStatus
+				: "disconnected";
 			const connectedAt = cfg.connectedAt as string | undefined;
 			const port = typeof cfg.port === "number" ? cfg.port : 9242;
 			const enabled = typeof cfg.enabled === "boolean" ? cfg.enabled : true;
@@ -122,12 +137,17 @@ chrome.storage.onChanged.addListener((changes, areaName) => {
 	if (areaName !== "local") return;
 	const change = changes[STORAGE_KEY];
 	if (!change) return;
-	const state = change.newValue as Record<string, unknown> | undefined;
-	if (state && typeof state === "object") {
-		updateStatusUI(
-			(state.connectionStatus as ConnectionStatus) ?? "disconnected",
-			state.connectedAt as string | undefined,
-		);
+	const state: unknown = change.newValue;
+	if (typeof state === "object" && state !== null) {
+		const status =
+			"connectionStatus" in state && isConnectionStatus(state.connectionStatus)
+				? state.connectionStatus
+				: "disconnected";
+		const connectedAt =
+			"connectedAt" in state && typeof state.connectedAt === "string"
+				? state.connectedAt
+				: undefined;
+		updateStatusUI(status, connectedAt);
 	}
 });
 
@@ -287,6 +307,101 @@ chrome.tabs.onCreated.addListener(() => {
 	void loadTabs();
 });
 
+// ── Version ───────────────────────────────────────────────────────────────
+
+const versionEl = document.getElementById("version");
+if (versionEl)
+	versionEl.textContent = `v${chrome.runtime.getManifest().version}`;
+
+// ── Pairing token ─────────────────────────────────────────────────────────
+
+const pairInput = document.getElementById("pair-token");
+const pairSave = document.getElementById("pair-save");
+const pairState = document.getElementById("pair-state");
+
+async function loadPairState(): Promise<void> {
+	if (!pairState) return;
+	pairState.textContent = (await getPairToken())
+		? "Token saved."
+		: "Not paired: no token saved.";
+}
+
+pairSave?.addEventListener("click", async () => {
+	if (!(pairInput instanceof HTMLInputElement)) return;
+	const token = pairInput.value.trim();
+	if (!/^[0-9a-f]{64}$/.test(token)) {
+		setStatusMessage("The token is 64 hex characters.", false);
+		return;
+	}
+	try {
+		await savePairToken(token);
+		pairInput.value = "";
+		setStatusMessage("Pairing token saved.", true);
+		await loadPairState();
+	} catch (e: unknown) {
+		logger.error("Failed to save pairing token:", e);
+		setStatusMessage("Failed to save the pairing token.", false);
+	}
+});
+
+// ── Action log ────────────────────────────────────────────────────────────
+
+const LOG_VISIBLE = 50;
+const logList = document.getElementById("action-log");
+
+function logRow(entry: ActionLogEntry): HTMLLIElement {
+	const li = document.createElement("li");
+	const parts: [string, string][] = [
+		[new Date(entry.ts).toLocaleTimeString(), "muted"],
+		[entry.action, ""],
+		[entry.ok ? "ok" : (entry.error ?? "error"), entry.ok ? "muted" : "err"],
+		[`${entry.durationMs}ms`, "muted"],
+		[entry.url ?? "", "muted"],
+	];
+	for (const [text, cls] of parts) {
+		const span = document.createElement("span");
+		span.textContent = text;
+		if (cls) span.className = cls;
+		li.append(span);
+	}
+	li.title = entry.selector ?? entry.url ?? "";
+	return li;
+}
+
+async function renderLog(): Promise<void> {
+	if (!logList) return;
+	const entries = (await readActionLog()).slice(-LOG_VISIBLE).reverse();
+	logList.replaceChildren(...entries.map(logRow));
+	if (entries.length === 0) {
+		const li = document.createElement("li");
+		li.className = "muted";
+		li.textContent = "No actions yet.";
+		logList.append(li);
+	}
+}
+
+document.getElementById("log-clear")?.addEventListener("click", async () => {
+	await clearActionLog();
+	await renderLog();
+});
+
+document.getElementById("log-download")?.addEventListener("click", async () => {
+	const blob = new Blob([toJsonl(await readActionLog())], {
+		type: "application/x-ndjson",
+	});
+	const a = document.createElement("a");
+	a.href = URL.createObjectURL(blob);
+	a.download = `agent-browser-bridge-actions-${Date.now()}.jsonl`;
+	a.click();
+	URL.revokeObjectURL(a.href);
+});
+
+chrome.storage.onChanged.addListener((changes, areaName) => {
+	if (areaName !== "local") return;
+	if (changes[ACTION_LOG_KEY]) void renderLog();
+	if (changes[PAIR_TOKEN_KEY]) void loadPairState();
+});
+
 // ── Event listeners ───────────────────────────────────────────────────────
 
 saveBtn?.addEventListener("click", () => {
@@ -300,5 +415,7 @@ resetBtn?.addEventListener("click", () => {
 // ── Init ──────────────────────────────────────────────────────────────────
 
 void loadBridgeState();
+void loadPairState();
+void renderLog();
 void loadAllowlist();
 void loadTabs();

@@ -104,6 +104,10 @@ body {
 }
 
 .status-dot.disconnected {
+	background: var(--text-muted);
+}
+
+.status-dot.unpaired {
 	background: var(--red);
 	box-shadow: 0 0 6px rgba(239, 68, 68, 0.4);
 }
@@ -135,6 +139,10 @@ body {
 }
 
 .status-label.disconnected {
+	color: var(--text-muted);
+}
+
+.status-label.unpaired {
 	color: var(--red);
 }
 
@@ -468,4 +476,57 @@ button.primary:hover {
 
 .status.error {
 	color: var(--red);
+}
+
+/* ── Pairing token ──────────────────────────────────────────────────── */
+
+.pair-section,
+.log-section {
+	margin: 12px 0;
+}
+
+.pair-row {
+	display: flex;
+	gap: 6px;
+	margin-top: 4px;
+}
+
+.pair-row input {
+	flex: 1;
+	min-width: 0;
+	padding: 6px 8px;
+	font-size: 0.78rem;
+	border: 1px solid var(--border);
+	border-radius: 6px;
+	background: var(--bg-card);
+	color: var(--text);
+}
+
+/* ── Action log ─────────────────────────────────────────────────────── */
+
+.action-log {
+	max-height: 160px;
+	overflow-y: auto;
+	margin: 6px 0;
+	padding: 0;
+	list-style: none;
+	font-size: 0.7rem;
+}
+
+.action-log li {
+	display: flex;
+	gap: 6px;
+	padding: 3px 0;
+	border-bottom: 1px solid var(--border);
+	overflow: hidden;
+	white-space: nowrap;
+	text-overflow: ellipsis;
+}
+
+.action-log .err {
+	color: var(--red);
+}
+
+.action-log .muted {
+	color: var(--text-muted);
 }

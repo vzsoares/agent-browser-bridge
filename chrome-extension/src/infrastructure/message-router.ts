@@ -15,6 +15,8 @@
 import type { Request, Response } from "@agent-browser-bridge/protocol";
 
 import { matchDomain } from "../domain/index.js";
+import { appendActionLog, buildEntry } from "./action-log.js";
+import { trackBusy } from "./chrome-runtime.js";
 import { getAllowlist } from "./chrome-storage.js";
 import {
 	forwardToContentScript,
@@ -106,6 +108,18 @@ function parseRequest(raw: string): Request | Response {
 	}
 
 	return obj as unknown as Request;
+}
+
+function numberField(obj: unknown, key: string): number | null {
+	if (typeof obj !== "object" || obj === null) return null;
+	const v = Object.entries(obj).find(([k]) => k === key)?.[1];
+	return typeof v === "number" ? v : null;
+}
+
+function stringField(obj: unknown, key: string): string | null {
+	if (typeof obj !== "object" || obj === null) return null;
+	const v = Object.entries(obj).find(([k]) => k === key)?.[1];
+	return typeof v === "string" ? v : null;
 }
 
 // ── Response serialization ─────────────────────────────────────────────
@@ -207,40 +221,50 @@ export function createMessageRouter(
 		}
 
 		const request = parsed as Request;
+		const startedAt = Date.now();
+		const target: { tabId: number | null } = { tabId: null };
+		void trackBusy(1);
+		let resp: Response;
+		try {
+			resp = await route(request, target);
+		} finally {
+			void trackBusy(-1);
+		}
+		sendResponse(resp);
+		await logAction(request, target.tabId, resp, startedAt);
+	}
 
+	async function route(
+		request: Request,
+		target: { tabId: number | null },
+	): Promise<Response> {
 		// ── Navigate: handle directly (content script destroyed on navigation) ─
 		if (request.action === "navigate") {
-			const resp = await handleNavigate(request.id, request.params);
-			sendResponse(resp);
-			return;
+			return handleNavigate(request.id, request.params);
 		}
 
 		// ── Screenshot: handle directly (no content script needed) ──────────
 		if (request.action === "screenshot") {
 			const resp = await handleScreenshot(request.id, request.params);
-			sendResponse(resp);
-			return;
+			return resp;
 		}
 
 		// ── ListTabs: handle directly (chrome.tabs API, no content script) ──
 		if (request.action === "listTabs") {
 			const resp = await handleListTabs(request.id, request.params);
-			sendResponse(resp);
-			return;
+			return resp;
 		}
 
 		// ── CloseTab: handle directly (chrome.tabs API, no content script) ──
 		if (request.action === "closeTab") {
 			const resp = await handleCloseTab(request.id, request.params);
-			sendResponse(resp);
-			return;
+			return resp;
 		}
 
 		// ── CreateTab: handle directly (chrome.tabs API, no content script) ─
 		if (request.action === "createTab") {
 			const resp = await handleCreateTab(request.id, request.params);
-			sendResponse(resp);
-			return;
+			return resp;
 		}
 
 		// ── Resolve the target tab for every remaining action ─────────────
@@ -256,15 +280,14 @@ export function createMessageRouter(
 		if (requestedTabId !== undefined) {
 			const existing = await getTab(requestedTabId);
 			if (!existing) {
-				sendResponse({
+				return {
 					id: request.id,
 					error: {
 						code: "TAB_NOT_FOUND",
 						message: `Tab ${requestedTabId} does not exist or has been closed.`,
 						suggestion: "Use listTabs to find a valid tabId.",
 					},
-				});
-				return;
+				};
 			}
 			targetTabId = requestedTabId;
 		} else {
@@ -275,15 +298,16 @@ export function createMessageRouter(
 		}
 
 		if (targetTabId === null) {
-			sendResponse({
+			return {
 				id: request.id,
 				error: {
 					code: "BROWSER_NOT_CONNECTED",
 					message: "No active tab available",
 				},
-			});
-			return;
+			};
 		}
+
+		target.tabId = targetTabId;
 
 		// ── Domain allowlist check against the *target* tab ────────────────
 		const targetUrl =
@@ -300,15 +324,14 @@ export function createMessageRouter(
 			if (hostname) {
 				const allowlist = await getAllowlist();
 				if (!matchDomain(hostname, allowlist)) {
-					sendResponse({
+					return {
 						id: request.id,
 						error: {
 							code: "RESTRICTED_DOMAIN",
 							message: `Domain "${hostname}" is not in the allowlist.`,
 							suggestion: `Add "${hostname}" to the extension popup's domain allowlist, or set it to "*" to allow all domains.`,
 						},
-					});
-					return;
+					};
 				}
 			}
 		}
@@ -322,13 +345,46 @@ export function createMessageRouter(
 				...(params ?? {}),
 				tabId: targetTabId,
 			});
-			sendResponse(resp);
-			return;
+			return resp;
 		}
 
 		// ── All other actions: forward to content script in the target tab ─
 		const resp = await forwardToContentScript(targetTabId, request);
-		sendResponse(resp as Response);
+		return resp as Response;
+	}
+
+	async function logAction(
+		request: Request,
+		resolvedTabId: number | null,
+		resp: Response,
+		startedAt: number,
+	): Promise<void> {
+		const endedAt = Date.now();
+		try {
+			const tabId =
+				numberField(resp.result, "tabId") ??
+				numberField(request.params, "tabId") ??
+				resolvedTabId;
+			const url =
+				request.action === "navigate" || request.action === "createTab"
+					? stringField(request.params, "url")
+					: tabId !== null
+						? ((await getTab(tabId))?.url ?? null)
+						: null;
+			await appendActionLog(
+				buildEntry({
+					action: request.action,
+					params: request.params,
+					tabId,
+					url,
+					response: resp,
+					startedAt,
+					endedAt,
+				}),
+			);
+		} catch (e: unknown) {
+			logger.warn(`Action log write failed: ${e}`);
+		}
 	}
 
 	function sendResponse(resp: Response): void {

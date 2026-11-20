@@ -15,8 +15,24 @@
 
 export const STORAGE_KEY = "agent-browser-bridge";
 export const ALLOWLIST_KEY = "domainAllowlist";
+export const PAIR_TOKEN_KEY = "pairToken";
 export const DEFAULT_PORT = 9242;
 export const DEFAULT_ALLOWLIST = ["*"];
+
+export type ConnectionStatus =
+	| "connected"
+	| "disconnected"
+	| "connecting"
+	| "unpaired";
+
+export function isConnectionStatus(v: unknown): v is ConnectionStatus {
+	return (
+		v === "connected" ||
+		v === "disconnected" ||
+		v === "connecting" ||
+		v === "unpaired"
+	);
+}
 
 // ── Bridge config shape ──────────────────────────────────────────────────
 
@@ -27,7 +43,7 @@ export interface BridgeConfig {
 	/** Whether the bridge is enabled. */
 	enabled: boolean;
 	/** Current connection status. */
-	connectionStatus?: "connected" | "disconnected" | "connecting";
+	connectionStatus?: ConnectionStatus;
 	/** ISO-8601 timestamp of last successful connection. */
 	connectedAt?: string;
 }
@@ -63,12 +79,9 @@ export async function getBridgeConfig(): Promise<BridgeConfig> {
 						? cfg.port
 						: DEFAULT_PORT,
 				enabled: typeof cfg.enabled === "boolean" ? cfg.enabled : true,
-				connectionStatus:
-					cfg.connectionStatus === "connected" ||
-					cfg.connectionStatus === "disconnected" ||
-					cfg.connectionStatus === "connecting"
-						? cfg.connectionStatus
-						: undefined,
+				connectionStatus: isConnectionStatus(cfg.connectionStatus)
+					? cfg.connectionStatus
+					: undefined,
 				connectedAt:
 					typeof cfg.connectedAt === "string" ? cfg.connectedAt : undefined,
 			};
@@ -175,4 +188,21 @@ export async function initializeAllowlist(): Promise<void> {
 	} catch {
 		// Non-critical.
 	}
+}
+
+// ── Pairing token ────────────────────────────────────────────────────────
+
+/** Read the pairing token, or `null` when none is saved. */
+export async function getPairToken(): Promise<string | null> {
+	try {
+		const stored = await chrome.storage.local.get(PAIR_TOKEN_KEY);
+		const raw = stored[PAIR_TOKEN_KEY];
+		return typeof raw === "string" && raw.trim().length > 0 ? raw.trim() : null;
+	} catch {
+		return null;
+	}
+}
+
+export async function savePairToken(token: string): Promise<void> {
+	await chrome.storage.local.set({ [PAIR_TOKEN_KEY]: token.trim() });
 }

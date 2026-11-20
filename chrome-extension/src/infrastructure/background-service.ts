@@ -26,8 +26,10 @@ import {
 } from "./chrome-runtime.js";
 import {
 	getBridgeConfig,
+	getPairToken,
 	initializeAllowlist,
 	loadPort,
+	PAIR_TOKEN_KEY,
 	STORAGE_KEY,
 	savePort,
 } from "./chrome-storage.js";
@@ -659,9 +661,12 @@ export async function init(logger: Logger): Promise<{
 	// then wire the real message router after both exist.
 	let handleMessage: (raw: string) => Promise<void>;
 
+	const pairToken = { current: await getPairToken() };
+
 	const wsClient = new WebSocketClient({
 		port,
 		logger,
+		getToken: () => pairToken.current,
 		onMessage: (raw: string) => {
 			void handleMessage(raw);
 		},
@@ -726,6 +731,12 @@ export async function init(logger: Logger): Promise<{
 		},
 	});
 
+	// Off closes the socket with 1000 and stops reconnecting; on reconnects now.
+	function applyEnabled(): void {
+		if (enabledRef.current) wsClient.connect();
+		else wsClient.disconnect();
+	}
+
 	// ── Tab lifecycle listeners ─────────────────────────────────────
 	onTabActivated((tabId) => {
 		logger.info(`Active tab changed to ${tabId}`);
@@ -743,11 +754,16 @@ export async function init(logger: Logger): Promise<{
 	onStorageKeyChanged(STORAGE_KEY, (newValue) => {
 		const state = newValue as Record<string, unknown> | undefined;
 		if (state && typeof state === "object") {
-			if ("enabled" in state && typeof state.enabled === "boolean") {
+			if (
+				"enabled" in state &&
+				typeof state.enabled === "boolean" &&
+				state.enabled !== enabledRef.current
+			) {
 				enabledRef.current = state.enabled;
 				logger.info(
 					`Bridge ${enabledRef.current ? "enabled" : "disabled"} (from storage change)`,
 				);
+				applyEnabled();
 			}
 			if (
 				"port" in state &&
@@ -759,6 +775,15 @@ export async function init(logger: Logger): Promise<{
 				wsClient.setPort(port);
 			}
 		}
+	});
+
+	onStorageKeyChanged(PAIR_TOKEN_KEY, (newValue) => {
+		pairToken.current =
+			typeof newValue === "string" && newValue.trim().length > 0
+				? newValue.trim()
+				: null;
+		logger.info("Pairing token changed");
+		applyEnabled();
 	});
 
 	// ── Install listener ────────────────────────────────────────────
@@ -781,7 +806,7 @@ export async function init(logger: Logger): Promise<{
 
 	// ── Return public API ───────────────────────────────────────────
 	return {
-		connect: () => wsClient.connect(),
+		connect: applyEnabled,
 		getActiveTabId: () => getActiveTabId(),
 		loadPort,
 		savePort,
