@@ -329,8 +329,8 @@ async function loadPairState(): Promise<void> {
 pairSave?.addEventListener("click", async () => {
 	if (!(pairInput instanceof HTMLInputElement)) return;
 	const token = pairInput.value.trim();
-	if (!/^[0-9a-f]{64}$/.test(token)) {
-		setStatusMessage("The token is 64 hex characters.", false);
+	if (token.length === 0 || /\s/.test(token)) {
+		setStatusMessage("Paste the pairing token (no spaces).", false);
 		return;
 	}
 	try {
@@ -393,7 +393,8 @@ document.getElementById("log-download")?.addEventListener("click", async () => {
 	a.href = URL.createObjectURL(blob);
 	a.download = `agent-browser-bridge-actions-${Date.now()}.jsonl`;
 	a.click();
-	URL.revokeObjectURL(a.href);
+	// Revoking in the same task can cancel the download.
+	setTimeout(() => URL.revokeObjectURL(a.href), 0);
 });
 
 chrome.storage.onChanged.addListener((changes, areaName) => {

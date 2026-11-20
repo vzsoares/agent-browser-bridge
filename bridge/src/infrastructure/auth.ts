@@ -35,7 +35,8 @@ export interface BridgeOptions {
 	clientRoute: boolean;
 	extensionId: string;
 	pairTokenFile: string;
-	clientTokenFile: string;
+	/** `null` means the per-port default, see {@link clientTokenFileFor}. */
+	clientTokenFile: string | null;
 }
 
 export function configDir(): string {
@@ -64,8 +65,16 @@ export function resolveBridgeOptions(
 		pairTokenFile:
 			overrides.pairTokenFile ??
 			(env.AGENT_BROWSER_PAIR_TOKEN_FILE || join(dir, "pair.token")),
-		clientTokenFile: overrides.clientTokenFile ?? join(dir, "client.token"),
+		clientTokenFile: overrides.clientTokenFile ?? null,
 	};
+}
+
+/** Per-port so owners on different ports don't overwrite each other's token. */
+export function clientTokenFileFor(
+	opts: Pick<BridgeOptions, "clientTokenFile">,
+	port: number,
+): string {
+	return opts.clientTokenFile ?? join(configDir(), `client-${port}.token`);
 }
 
 export function generateToken(): string {

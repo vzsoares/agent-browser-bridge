@@ -210,7 +210,7 @@ The bridge MCP server runs a WebSocket server (default `127.0.0.1:9242`). The Ch
 The `hello` must arrive within 2 s. A missing, wrong or late token closes the socket with **4401**; nothing is relayed before it, and the hello itself is never forwarded. Tokens are compared in constant time.
 
 - **Pairing token**: read from `AGENT_BROWSER_PAIR_TOKEN_FILE`, else `~/.config/agent-browser-bridge/pair.token`. Created on first start (32 random bytes, hex, mode 0600). There is no flag that turns auth off.
-- **Client token**: the owner writes a fresh one to `~/.config/agent-browser-bridge/client.token` (0600) at every start; client-mode instances read it.
+- **Client token**: the owner writes a fresh one to `~/.config/agent-browser-bridge/client-<port>.token` (0600) at every start; client-mode instances read it.
 
 ### Close codes
 

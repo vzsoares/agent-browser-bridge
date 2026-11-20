@@ -35,7 +35,8 @@
  * @module benchmarks/websocket-relay
  */
 
-import { send, start, stop } from "../../infrastructure/ws-server.js";
+import { send, stop } from "../../infrastructure/ws-server.js";
+import { connectExtension, startTestBridge } from "../bridge-test-helpers.js";
 
 // ── Types ────────────────────────────────────────────────────────────────
 
@@ -82,28 +83,6 @@ interface BenchmarkConfig {
 /** Sleep for `ms` milliseconds. */
 function sleep(ms: number): Promise<void> {
 	return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
-/** Connect a real WebSocket client to the server (simulates chrome-extension). */
-function connectClient(port: number): Promise<WebSocket> {
-	return new Promise((resolve, reject) => {
-		const ws = new WebSocket(`ws://localhost:${port}`);
-
-		const timeout = setTimeout(() => {
-			ws.close();
-			reject(new Error(`WebSocket connection timed out to port ${port}`));
-		}, 3000);
-
-		ws.onopen = () => {
-			clearTimeout(timeout);
-			resolve(ws);
-		};
-
-		ws.onerror = (e) => {
-			clearTimeout(timeout);
-			reject(new Error(`WebSocket connection failed: ${(e as Event).type}`));
-		};
-	});
 }
 
 // ── Mock Browser Client (simulates chrome-extension) ─────────────────────
@@ -195,20 +174,14 @@ function computeStats(latencies: number[]): {
  * 5. Returns whether p95 met the target.
  */
 async function runBenchmark(config: BenchmarkConfig): Promise<BenchmarkResult> {
-	const clientCount = Math.max(config.concurrency, 1);
-
 	// ── Start server ─────────────────────────────────────────────────────
-	const server = await start(0);
-	console.log(`\n  Server started on port ${server.port}`);
+	const { port } = await startTestBridge();
+	console.log(`\n  Server started on port ${port}`);
 
-	// ── Connect mock browser clients ──────────────────────────────────────
-	const clients: WebSocket[] = [];
-	for (let i = 0; i < clientCount; i++) {
-		const ws = await connectClient(server.port);
-		createMockBrowser(ws);
-		clients.push(ws);
-	}
-	console.log(`  Connected ${clientCount} mock browser client(s)`);
+	// The bridge keeps one extension connection; a newer one replaces it.
+	const clients = [await connectExtension(port)];
+	for (const ws of clients) createMockBrowser(ws);
+	console.log("  Connected the mock browser client");
 
 	// ── Warmup (excluded from measurements) ──────────────────────────────
 	if (config.warmupIterations > 0) {

@@ -23,6 +23,7 @@ import { Hono } from "hono";
 import type { ServerHandle } from "../domain/ports.js";
 import {
 	type BridgeOptions,
+	clientTokenFileFor,
 	generateToken,
 	HELLO_TIMEOUT_MS,
 	isExtensionOrigin,
@@ -187,7 +188,7 @@ async function connectAsClient(port: number): Promise<boolean> {
 	const result = await tryConnectAsClient(
 		port,
 		options.host,
-		options.clientTokenFile,
+		clientTokenFileFor(options, port),
 		handleMessage,
 	);
 	if (!result) return false;
@@ -225,7 +226,11 @@ function scheduleReconnect(port: number, minDelay = 0): void {
 			return;
 		}
 		logger.info("No owner found, taking over as owner...");
-		startAsOwner(port);
+		try {
+			startAsOwner(port);
+		} catch (err) {
+			logger.error("Failover to owner failed:", err);
+		}
 	}, delay);
 }
 
@@ -294,10 +299,17 @@ function startAsOwner(effectivePort: number): InternalServerHandle | null {
 		return null;
 	}
 
-	if (opts.clientRoute) writeTokenFile(opts.clientTokenFile, clientToken);
-
 	const running = server;
 	const boundPort = running.port ?? effectivePort;
+	if (opts.clientRoute) {
+		try {
+			writeTokenFile(clientTokenFileFor(opts, boundPort), clientToken);
+		} catch (err) {
+			running.stop(true);
+			server = null;
+			throw err;
+		}
+	}
 	logger.info(`Owner server listening on ${opts.host}:${boundPort}`);
 
 	serverHandle = {
@@ -323,7 +335,7 @@ function startAsOwner(effectivePort: number): InternalServerHandle | null {
 export async function start(
 	overrides: Partial<BridgeOptions> = {},
 ): Promise<InternalServerHandle> {
-	if (server !== null || getClientSocket() !== null) {
+	if (server !== null || getClientSocket() !== null || reconnectTimer) {
 		stop();
 	}
 

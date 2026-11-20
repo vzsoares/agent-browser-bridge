@@ -217,12 +217,12 @@ describe("/client route", () => {
 			},
 		);
 		try {
+			const port = await childPort(owner);
 			// The child owner writes its client token under $HOME.
 			const clientTokenFile = join(
 				files.dir,
-				".config/agent-browser-bridge/client.token",
+				`.config/agent-browser-bridge/client-${port}.token`,
 			);
-			const port = await childPort(owner);
 
 			await expect(
 				start({
