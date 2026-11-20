@@ -12,34 +12,23 @@
 
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { onResponse, send, start, stop } from "../infrastructure/ws-server.js";
+import {
+	connectExtension,
+	startTestBridge,
+	tempTokenFiles,
+} from "./bridge-test-helpers.js";
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
-let currentServer: ReturnType<typeof start> | null = null;
-
-/**
- * Start a fresh server on a dynamic (OS-assigned) port.
- * Stores the server for cleanup and returns the port.
- */
+/** Start a fresh server on an OS-assigned port; returns the port. */
 async function startOnDynamicPort(): Promise<number> {
 	stop();
-	// Use port 0 so the OS picks a free port
-	currentServer = await start(0);
-	return currentServer.port;
+	return (await startTestBridge()).port;
 }
 
-/**
- * Connect a test WebSocket client to the server.
- * Resolves once the connection is open.
- */
+/** Connect an authenticated test extension. */
 function connectClient(port: number): Promise<WebSocket> {
-	return new Promise((resolve, reject) => {
-		const ws = new WebSocket(`ws://localhost:${port}`);
-		ws.onopen = () => resolve(ws);
-		ws.onerror = (e) =>
-			reject(new Error(`WebSocket connection failed: ${e.message}`));
-		setTimeout(() => reject(new Error("WebSocket connection timed out")), 3000);
-	});
+	return connectExtension(port);
 }
 
 /** Small sleep helper. */
@@ -482,7 +471,7 @@ describe("start() / stop() lifecycle", () => {
 	});
 
 	test("start() returns a server instance with the given port", async () => {
-		const srv = await start(0);
+		const srv = await startTestBridge();
 		expect(srv).toBeDefined();
 		expect(srv.port).toBeGreaterThan(0);
 	});
@@ -492,7 +481,11 @@ describe("start() / stop() lifecycle", () => {
 		const prevEnv = process.env.AGENT_BROWSER_PORT;
 		delete process.env.AGENT_BROWSER_PORT;
 
-		const srv = await start();
+		const files = tempTokenFiles();
+		const srv = await start({
+			pairTokenFile: files.pairTokenFile,
+			clientTokenFile: files.clientTokenFile,
+		});
 		expect(srv.port).toBe(9242);
 
 		if (prevEnv !== undefined) process.env.AGENT_BROWSER_PORT = prevEnv;
@@ -501,7 +494,11 @@ describe("start() / stop() lifecycle", () => {
 	test("start() respects AGENT_BROWSER_PORT env variable", async () => {
 		stop();
 		process.env.AGENT_BROWSER_PORT = "19999";
-		const srv = await start();
+		const files = tempTokenFiles();
+		const srv = await start({
+			pairTokenFile: files.pairTokenFile,
+			clientTokenFile: files.clientTokenFile,
+		});
 		expect(srv.port).toBe(19999);
 
 		delete process.env.AGENT_BROWSER_PORT;
@@ -510,7 +507,7 @@ describe("start() / stop() lifecycle", () => {
 	test("start() overrides env with explicit port", async () => {
 		stop();
 		process.env.AGENT_BROWSER_PORT = "19999";
-		const srv = await start(0);
+		const srv = await startTestBridge();
 		expect(srv.port).toBeGreaterThan(0); // explicit 0 wins
 		expect(srv.port).not.toBe(19999);
 
@@ -518,8 +515,8 @@ describe("start() / stop() lifecycle", () => {
 	});
 
 	test("start() is idempotent — stops previous before starting new", async () => {
-		const s1 = await start(0);
-		const s2 = await start(0);
+		const s1 = await startTestBridge();
+		const s2 = await startTestBridge();
 		// Both calls should succeed; the second replaces the first
 		expect(s2.port).toBeGreaterThan(0);
 		// Different port because we used port 0 both times (OS assigns fresh)
@@ -527,7 +524,7 @@ describe("start() / stop() lifecycle", () => {
 	});
 
 	test("stop() clears connections so send() rejects with BROWSER_NOT_CONNECTED", async () => {
-		const srv = await start(0);
+		const srv = await startTestBridge();
 		const port = srv.port;
 		const ws = await connectClient(port);
 
@@ -547,7 +544,7 @@ describe("start() / stop() lifecycle", () => {
 		});
 
 		// After stop, new send() calls should reject (no active server)
-		await start(0);
+		await startTestBridge();
 		// No client connected to new server
 		await expect(
 			send({ id: "after-stop", action: "read", params: {} }),
@@ -555,7 +552,7 @@ describe("start() / stop() lifecycle", () => {
 	});
 
 	test("stop() clears response subscribers", async () => {
-		const srv = await start(0);
+		const srv = await startTestBridge();
 		const port = srv.port;
 		const ws = await connectClient(port);
 
@@ -574,7 +571,7 @@ describe("start() / stop() lifecycle", () => {
 
 		// After stop, subscription list should be cleared
 		// Start a new server to verify
-		const srv2 = await start(0);
+		const srv2 = await startTestBridge();
 		const ws2 = await connectClient(srv2.port);
 
 		ws2.onmessage = (event) => {
@@ -590,7 +587,7 @@ describe("start() / stop() lifecycle", () => {
 	});
 
 	test("double stop() is safe (idempotent)", async () => {
-		await start(0);
+		await startTestBridge();
 		stop();
 		stop(); // should not throw
 		// No assertion needed — just shouldn't crash

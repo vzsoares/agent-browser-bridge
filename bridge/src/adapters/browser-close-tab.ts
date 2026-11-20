@@ -41,7 +41,7 @@ export async function executeCloseTab(
 
 export const browserCloseTabTool = {
 	name: "browser_close_tab",
-	description: "Close a browser tab by id.",
+	description: "Close a tab in the user's real, logged-in Chrome by id.",
 	inputSchema: CloseTabSchema.shape,
 	execute: executeCloseTab,
 } as const;

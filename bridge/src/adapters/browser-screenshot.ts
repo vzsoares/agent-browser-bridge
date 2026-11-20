@@ -16,8 +16,8 @@ import {
 	formatBridgeError,
 	type ImageBlock,
 	imageBlock,
-	textBlock,
 	type TextBlock,
+	textBlock,
 } from "./helpers.js";
 
 export { ScreenshotSchema } from "../domain/schemas.js";
@@ -60,7 +60,7 @@ export async function executeScreenshot(
 export const browserScreenshotTool = {
 	name: "browser_screenshot",
 	description:
-		"Capture a screenshot of the current browser tab. Returns a base64-encoded image in PNG or JPEG format. Note: tabId is not supported for screenshots in v1; always captures the active tab.",
+		"Capture a screenshot of the active tab in the user's real, logged-in Chrome. Returns a base64-encoded image in PNG or JPEG format. Note: tabId is not supported for screenshots in v1; always captures the active tab.",
 	inputSchema: ScreenshotSchema.shape,
 	execute: executeScreenshot,
 } as const;

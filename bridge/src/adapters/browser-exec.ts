@@ -34,7 +34,7 @@ export async function executeExec(
 export const browserExecTool = {
 	name: "browser_exec",
 	description:
-		"Execute arbitrary JavaScript in the page context and return its (serialized) result. Async values are awaited.",
+		"Execute arbitrary JavaScript in a page of the user's real, logged-in Chrome and return its (serialized) result. Async values are awaited.",
 	inputSchema: ExecSchema.shape,
 	execute: executeExec,
 } as const;

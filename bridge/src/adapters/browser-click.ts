@@ -93,7 +93,7 @@ export async function executeClick(
 export const browserClickTool = {
 	name: "browser_click",
 	description:
-		"Click an element in the browser tab identified by a CSS selector. Optionally target a specific tab via tabId; when omitted, defaults to the active tab. Optionally disambiguate by text content.",
+		"Click an element in a tab of the user's real, logged-in Chrome, identified by a CSS selector. Optionally target a specific tab via tabId; when omitted, defaults to the active tab. Optionally disambiguate by text content.",
 	inputSchema: ClickSchema.shape,
 	execute: executeClick,
 } as const;

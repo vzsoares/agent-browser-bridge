@@ -1,39 +1,40 @@
 /**
- * Hono WebSocket server — lifecycle management, routing, and failover
+ * Hono WebSocket server — lifecycle, routing, authentication and failover
  * orchestration.
  *
- * Sets up the Hono app with two WebSocket routes:
- * - `/` — Chrome extension connection (owner receives).
- * - `/client` — pi client connections (owner receives from other pi
- *   instances in client mode).
+ * Routes:
+ * - `/` — the Chrome extension. The upgrade needs the pinned extension
+ *   Origin; the first frame must be a `hello` with the pairing token.
+ * - `/client` — other bridge instances in client mode (host failover).
+ *   Present only when `clientRoute` is on; refuses any Origin header and
+ *   needs the per-start client token.
  *
- * Implements the {@link ServerLifecycle} port from the domain layer:
- * `start()` tries client mode first, falls back to owner mode.
- * `stop()` gracefully tears everything down.
- *
- * This module is the top-level orchestrator in the infrastructure layer.
- * It imports from `ws-transport.ts` (core send/onResponse/handleMessage)
- * and `ws-failover.ts` (client-mode state), plus the domain ports and
- * I/O libraries (Hono, ws).
+ * `start()` tries client mode first (when the client route is on) and
+ * falls back to owner mode. `stop()` tears everything down.
  *
  * @module infrastructure/ws-server
  */
 
-import { serve, upgradeWebSocket } from "@hono/node-server";
 import { createLogger } from "@agent-browser-bridge/logger";
+import { serve, upgradeWebSocket } from "@hono/node-server";
 import { Hono } from "hono";
+import type { WSContext, WSEvents } from "hono/ws";
 import { type WebSocket, WebSocketServer } from "ws";
 
 import type { ServerHandle } from "../domain/ports.js";
-
-// ── Internal types ─────────────────────────────────────────────────────────
-
-/** Internal handle with a `_stop` method for lifecycle management. */
-interface InternalServerHandle extends ServerHandle {
-	/** @internal Stop the server (prefer the public {@link stop} function). */
-	_stop: () => void;
-}
-
+import {
+	type BridgeOptions,
+	generateToken,
+	HELLO_TIMEOUT_MS,
+	isExtensionOrigin,
+	loadOrCreateTokenFile,
+	parseHello,
+	REPLACED_CLOSE_CODE,
+	resolveBridgeOptions,
+	tokensEqual,
+	UNAUTHORIZED_CLOSE_CODE,
+	writeTokenFile,
+} from "./auth.js";
 import {
 	closeClientSocket,
 	getClientSequenceNumber,
@@ -46,7 +47,6 @@ import {
 	tryConnectAsClient,
 } from "./ws-failover.js";
 import {
-	addWsConnection,
 	assignClientSequence,
 	cleanupClientRequests,
 	clearRelayState,
@@ -60,177 +60,243 @@ import {
 	rejectAllPending,
 	removeClientSequence,
 	removeWsConnection,
+	replaceExtensionConnection,
 	send,
 } from "./ws-transport.js";
 
 const logger = createLogger("bridge:server");
 
-// ── Constants ──────────────────────────────────────────────────────────────
-
-const DEFAULT_PORT = 9242;
+/** Internal handle with a `_stop` method for lifecycle management. */
+interface InternalServerHandle extends ServerHandle {
+	/** @internal Stop the server (prefer the public {@link stop} function). */
+	_stop: () => void;
+}
 
 // ── Server instance state ──────────────────────────────────────────────────
 
 let wss: WebSocketServer | null = null;
 let serverHandle: InternalServerHandle | null = null;
 let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+let options: BridgeOptions = resolveBridgeOptions();
 
-// ── Hono app (routes registered once) ──────────────────────────────────────
-
-const app = new Hono();
-
-// / — Chrome extension connection (owner receives)
-app.get(
-	"/",
-	upgradeWebSocket(() => ({
-		onOpen(_event, ws) {
-			const raw = ws.raw as WebSocket;
-			addWsConnection(raw);
-			logger.info("Chrome extension connected");
-		},
-		onMessage(event, _ws) {
-			handleMessage(event.data as string);
-		},
-		onClose(_event, ws) {
-			const raw = ws.raw as WebSocket;
-			removeWsConnection(raw);
-			logger.info("Chrome extension disconnected");
-			if (getWsConnectionCount() === 0) {
-				rejectAllPending();
-			}
-		},
-		onError(error, _ws) {
-			logger.error("WebSocket error:", error);
-		},
-	})),
-);
-
-// /client — pi client connections (owner receives)
-app.get(
-	"/client",
-	upgradeWebSocket(() => ({
-		onOpen(_event, ws) {
-			const raw = ws.raw as WebSocket;
-			const seq = assignClientSequence(raw);
-
-			// Send welcome with sequence number so the client knows its
-			// failover priority.
-			try {
-				raw.send(JSON.stringify({ type: "welcome", sequence: seq }));
-			} catch {
-				// Client may have closed before we could send — ignore
-			}
-
-			logger.info(`Pi client connected (sequence ${seq})`);
-		},
-		onMessage(event, ws) {
-			const raw = ws.raw as WebSocket;
-			handleClientMessage(event.data as string, raw, getAnyConnection);
-		},
-		onClose(_event, ws) {
-			const raw = ws.raw as WebSocket;
-			const seq = removeClientSequence(raw);
-			logger.info(`Pi client disconnected (sequence ${seq ?? "?"})`);
-			cleanupClientRequests(raw);
-		},
-		onError(error, _ws) {
-			logger.error("Client WebSocket error:", error);
-		},
-	})),
-);
-
-// Fallback HTTP response for non-WebSocket requests on both routes
-app.get("/", (c) => c.text("Agent Browser Bridge — WebSocket server", 200));
-app.get("/client", (c) =>
-	c.text("Agent Browser Bridge — client endpoint", 200),
-);
-
-// ── Schedule reconnection (failover orchestration) ─────────────────────────
+// ── Authenticated socket events ────────────────────────────────────────────
 
 /**
- * Schedule a reconnection attempt after losing the owner connection.
- *
- * Clients try to become owner in sequence order (lowest sequence first).
- * Each client waits `sequence * 300ms` so they don't race:
- *   - client sequence 0 → immediate
- *   - client sequence 1 → 300ms
- *   - client sequence 2 → 600ms
- *   - ...
- *
- * If an earlier client becomes the new owner, later clients detect it
- * via `tryConnectAsClient` and reconnect as clients instead.
+ * Wrap a route's events with the first-frame `hello` check. Nothing reaches
+ * `onAuthed`/`onData` before the token matches; the hello is never relayed.
  */
-function scheduleReconnect(port: number): void {
+function authenticated(
+	expectedToken: () => string,
+	label: string,
+	handlers: {
+		onAuthed: (raw: WebSocket) => void;
+		onData: (data: string, raw: WebSocket) => void;
+		onAuthedClose: (raw: WebSocket) => void;
+	},
+): WSEvents<WebSocket> {
+	let authed = false;
+	let timer: ReturnType<typeof setTimeout> | null = null;
+
+	const reject = (ws: WSContext<WebSocket>, why: string) => {
+		logger.warn(`${label}: rejected (${why})`);
+		ws.close(UNAUTHORIZED_CLOSE_CODE, "Unauthorized");
+	};
+
+	return {
+		onOpen(_event, ws) {
+			timer = setTimeout(
+				() => reject(ws, "no hello in time"),
+				HELLO_TIMEOUT_MS,
+			);
+		},
+		onMessage(event, ws) {
+			const raw = ws.raw;
+			if (!raw) return;
+			const data = typeof event.data === "string" ? event.data : null;
+			if (authed) {
+				if (data !== null) handlers.onData(data, raw);
+				return;
+			}
+			if (timer) clearTimeout(timer);
+			timer = null;
+			const token = data === null ? null : parseHello(data);
+			if (token === null || !tokensEqual(token, expectedToken())) {
+				reject(ws, token === null ? "first frame is not a hello" : "bad token");
+				return;
+			}
+			authed = true;
+			handlers.onAuthed(raw);
+		},
+		onClose(_event, ws) {
+			if (timer) clearTimeout(timer);
+			timer = null;
+			if (authed && ws.raw) handlers.onAuthedClose(ws.raw);
+		},
+		onError(error) {
+			logger.error(`${label} WebSocket error:`, error);
+		},
+	};
+}
+
+// ── Hono app ───────────────────────────────────────────────────────────────
+
+function isUpgrade(upgradeHeader: string | undefined): boolean {
+	return upgradeHeader?.toLowerCase() === "websocket";
+}
+
+function createApp(
+	opts: BridgeOptions,
+	pairToken: string,
+	clientToken: string,
+): Hono {
+	const app = new Hono();
+
+	app.get(
+		"/",
+		async (c, next) => {
+			if (
+				isUpgrade(c.req.header("upgrade")) &&
+				!isExtensionOrigin(c.req.header("origin"), opts.extensionId)
+			) {
+				logger.warn("Extension upgrade refused: Origin is not the extension");
+				return c.text("Forbidden", 403);
+			}
+			await next();
+		},
+		upgradeWebSocket(() =>
+			authenticated(() => pairToken, "Extension", {
+				onAuthed(raw) {
+					replaceExtensionConnection(raw, REPLACED_CLOSE_CODE);
+					logger.info("Chrome extension connected");
+				},
+				onData(data) {
+					handleMessage(data);
+				},
+				onAuthedClose(raw) {
+					removeWsConnection(raw);
+					logger.info("Chrome extension disconnected");
+					if (getWsConnectionCount() === 0) rejectAllPending();
+				},
+			}),
+		),
+	);
+	app.get("/", (c) => c.text("Agent Browser Bridge — WebSocket server", 200));
+
+	if (!opts.clientRoute) return app;
+
+	app.get(
+		"/client",
+		async (c, next) => {
+			if (isUpgrade(c.req.header("upgrade")) && c.req.header("origin")) {
+				logger.warn("Client upgrade refused: Origin header present");
+				return c.text("Forbidden", 403);
+			}
+			await next();
+		},
+		upgradeWebSocket(() =>
+			authenticated(() => clientToken, "Client", {
+				onAuthed(raw) {
+					const seq = assignClientSequence(raw);
+					try {
+						raw.send(JSON.stringify({ type: "welcome", sequence: seq }));
+					} catch {
+						/* client closed before the welcome */
+					}
+					logger.info(`Bridge client connected (sequence ${seq})`);
+				},
+				onData(data, raw) {
+					handleClientMessage(data, raw, getAnyConnection);
+				},
+				onAuthedClose(raw) {
+					const seq = removeClientSequence(raw);
+					logger.info(`Bridge client disconnected (sequence ${seq})`);
+					cleanupClientRequests(raw);
+				},
+			}),
+		),
+	);
+	app.get("/client", (c) =>
+		c.text("Agent Browser Bridge — client endpoint", 200),
+	);
+
+	return app;
+}
+
+// ── Client mode ────────────────────────────────────────────────────────────
+
+/** Connect as a client and wire failover on close. Returns false if no owner. */
+async function connectAsClient(port: number): Promise<boolean> {
+	const result = await tryConnectAsClient(
+		port,
+		options.host,
+		options.clientTokenFile,
+		handleMessage,
+	);
+	if (!result) return false;
+
+	setClientSocket(result.ws);
+	result.ws.on("close", () => {
+		setClientSocket(null);
+		if (isShuttingDown()) {
+			logger.info("Client disconnected (shutting down)");
+			return;
+		}
+		logger.warn("Lost connection to owner server — will attempt failover");
+		rejectAllPending();
+		scheduleReconnect(port);
+	});
+	return true;
+}
+
+/**
+ * Schedule a failover attempt. Clients wait `sequence * 300ms` (plus
+ * `minDelay`) so they don't race to become owner.
+ */
+function scheduleReconnect(port: number, minDelay = 0): void {
 	if (isShuttingDown()) return;
 	if (reconnectTimer) clearTimeout(reconnectTimer);
 
-	const seq = getClientSequenceNumber();
-	const delay = Math.max(0, seq) * 300;
-
-	logger.info(`Failover scheduled in ${delay}ms ` + `(sequence ${seq})`);
+	const delay = minDelay + Math.max(0, getClientSequenceNumber()) * 300;
+	logger.info(`Failover scheduled in ${delay}ms`);
 
 	reconnectTimer = setTimeout(async () => {
 		reconnectTimer = null;
 		if (isShuttingDown()) return;
-
-		logger.info("Attempting to take over as owner...");
-
-		// Try client mode first — maybe an earlier client already became owner
-		const result = await tryConnectAsClient(port, handleMessage);
-		if (result) {
-			setClientSocket(result.ws);
-
-			// Attach close handler for failover
-			result.ws.on("close", () => {
-				setClientSocket(null);
-				if (!isShuttingDown()) {
-					logger.warn(
-						"Lost connection to owner server — will attempt failover",
-					);
-					rejectAllPending();
-					scheduleReconnect(port);
-				} else {
-					logger.info("Client disconnected (shutting down)");
-				}
-			});
-
-			logger.info("Another client became owner — reconnected as client");
+		if (await connectAsClient(port)) {
+			logger.info("Another instance is owner — reconnected as client");
 			return;
 		}
-
-		// No server running — become the owner
 		logger.info("No owner found, taking over as owner...");
 		startAsOwner(port);
 	}, delay);
 }
 
-// ── Start as owner ─────────────────────────────────────────────────────────
+// ── Owner mode ─────────────────────────────────────────────────────────────
 
-/**
- * Start the HTTP + WebSocket server and become the owner.
- * Returns a handle with the bound port and a `_stop` function.
- */
 function startAsOwner(effectivePort: number): InternalServerHandle {
+	const pairToken = loadOrCreateTokenFile(options.pairTokenFile);
+	let clientToken = "";
+	if (options.clientRoute) {
+		clientToken = generateToken();
+		writeTokenFile(options.clientTokenFile, clientToken);
+	}
+
 	wss = new WebSocketServer({ noServer: true });
+	const app = createApp(options, pairToken, clientToken);
 
 	const httpServer = serve({
 		fetch: app.fetch,
 		port: effectivePort,
+		hostname: options.host,
 		websocket: { server: wss },
 	});
 
-	// Handle port-already-in-use — another instance may have taken over
-	// between our client-mode check and this bind attempt.
 	httpServer.on("error", (err: NodeJS.ErrnoException) => {
 		if (err.code === "EADDRINUSE") {
-			logger.warn(
-				`Port ${effectivePort} is already in use — ` +
-					`another instance likely took over. Retrying as client...`,
-			);
+			logger.warn(`Port ${effectivePort} is already in use`);
 		} else {
 			logger.error(`Server error on port ${effectivePort}:`, err.message);
 		}
-		// Tear down failed owner state
 		if (wss) {
 			wss.close();
 			wss = null;
@@ -239,9 +305,8 @@ function startAsOwner(effectivePort: number): InternalServerHandle {
 		rejectAllPending();
 		clearResponseHandlers();
 
-		// If it was EADDRINUSE, retry as client instead of giving up
-		if (err.code === "EADDRINUSE" && !isShuttingDown()) {
-			scheduleReconnect(effectivePort);
+		if (err.code === "EADDRINUSE" && options.clientRoute && !isShuttingDown()) {
+			scheduleReconnect(effectivePort, 1000);
 		}
 	});
 
@@ -249,7 +314,7 @@ function startAsOwner(effectivePort: number): InternalServerHandle {
 	const boundPort =
 		typeof addr === "object" && addr !== null ? addr.port : effectivePort;
 
-	logger.info(`Owner server listening on port ${boundPort}`);
+	logger.info(`Owner server listening on ${options.host}:${boundPort}`);
 
 	serverHandle = {
 		port: boundPort,
@@ -267,75 +332,41 @@ function startAsOwner(effectivePort: number): InternalServerHandle {
 	return serverHandle;
 }
 
-// ── Public API: start ──────────────────────────────────────────────────────
+// ── Public API ─────────────────────────────────────────────────────────────
 
 /**
- * Start the WebSocket server.
- *
- * Tries to connect as a client to an already-running owner server first.
- * If no owner is available, starts a new server and becomes the owner.
- *
- * On owner disconnect, surviving clients automatically reconnect or
- * promote to owner (failover).
- *
- * @param port — Override the default port (9242) or the `AGENT_BROWSER_PORT`
- *               env variable. If omitted, the env var is checked first,
- *               falling back to 9242. Pass `0` to let the OS assign a free
- *               port (owner mode only — client mode uses the given port).
- * @returns A handle with the bound port number.
+ * Start the bridge. Options not given come from the environment
+ * (`AGENT_BROWSER_PORT`, `AGENT_BROWSER_HOST`, `AGENT_BROWSER_CLIENT`,
+ * `AGENT_BROWSER_EXTENSION_ID`, `AGENT_BROWSER_PAIR_TOKEN_FILE`).
+ * Port `0` lets the OS pick a free port (owner mode only).
  */
-export async function start(port?: number): Promise<InternalServerHandle> {
-	const effectivePort =
-		port ??
-		Number.parseInt(process.env.AGENT_BROWSER_PORT ?? String(DEFAULT_PORT), 10);
-
-	setReconnectPort(effectivePort);
-	setShuttingDown(false);
-
-	// Idempotent: stop any previous server before starting a new one
+export async function start(
+	overrides: Partial<BridgeOptions> = {},
+): Promise<InternalServerHandle> {
 	if (wss !== null || getClientSocket() !== null) {
 		stop();
 	}
 
-	// ── Try client mode first: connect to an existing owner server ──
-	const result = await tryConnectAsClient(effectivePort, handleMessage);
-	if (result) {
-		setClientSocket(result.ws);
+	options = resolveBridgeOptions(overrides);
+	setReconnectPort(options.port);
+	setShuttingDown(false);
 
-		// Attach close handler for failover
-		result.ws.on("close", () => {
-			setClientSocket(null);
-			if (isShuttingDown()) {
-				logger.info("Client disconnected (shutting down)");
-				return;
-			}
-			logger.warn("Lost connection to owner server — will attempt failover");
-			rejectAllPending();
-			scheduleReconnect(effectivePort);
-		});
-
+	if (options.clientRoute && (await connectAsClient(options.port))) {
 		return {
-			port: result.port,
+			port: options.port,
 			_stop: () => {
-				if (getClientSocket()) {
-					closeClientSocket();
-					setClientSocket(null);
-				}
+				closeClientSocket();
+				setClientSocket(null);
 			},
 		};
 	}
 
-	// ── No server running — become the owner ──
-	return startAsOwner(effectivePort);
+	return startAsOwner(options.port);
 }
 
-// ── Public API: stop ───────────────────────────────────────────────────────
-
 /**
- * Gracefully shut down the WebSocket server.
- *
- * All active connections are closed, pending requests are rejected with
- * `BROWSER_NOT_CONNECTED`, and response subscribers are cleared.
+ * Gracefully shut down: close connections, reject pending requests with
+ * `BROWSER_NOT_CONNECTED`, and clear response subscribers.
  */
 export function stop(): void {
 	setShuttingDown(true);
@@ -359,7 +390,5 @@ export function stop(): void {
 	clearResponseHandlers();
 }
 
-// ── Re-exports for convenience ─────────────────────────────────────────────
-
-export type { ServerHandle };
+export type { BridgeOptions, ServerHandle };
 export { onResponse, send };

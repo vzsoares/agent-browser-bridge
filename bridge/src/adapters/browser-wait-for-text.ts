@@ -43,7 +43,7 @@ export async function executeWaitForText(
 export const browserWaitForTextTool = {
 	name: "browser_wait_for_text",
 	description:
-		"Wait for a substring of text to appear on the page (optionally within a CSS scope).",
+		"Wait for a substring of text to appear on a page in the user's real, logged-in Chrome (optionally within a CSS scope).",
 	inputSchema: WaitForTextSchema.shape,
 	execute: executeWaitForText,
 } as const;

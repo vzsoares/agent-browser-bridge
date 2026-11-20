@@ -46,6 +46,7 @@ export type Action =
  * | `CONNECTION_RESET` | The WebSocket connection was lost during a request. | The bridge retries automatically. If it persists, restart the extension. |
  * | `UNKNOWN_ACTION` | The requested action is not recognised, or the request was malformed. | Check the action name against the supported actions: navigate, click, type, screenshot, read, exec. |
  * | `TAB_NOT_FOUND` | The specified tabId does not correspond to any open tab. | The tab may have been closed. List tabs to find a valid tabId. |
+ * | `UNAUTHORIZED` | The connection did not authenticate with a valid `hello` token. | Paste the pairing token into the extension popup. |
  */
 export type ErrorCode =
 	| "TIMEOUT"
@@ -58,7 +59,19 @@ export type ErrorCode =
 	| "BROWSER_NOT_CONNECTED"
 	| "CONNECTION_RESET"
 	| "UNKNOWN_ACTION"
-	| "TAB_NOT_FOUND";
+	| "TAB_NOT_FOUND"
+	| "UNAUTHORIZED";
+
+// ── Handshake ───────────────────────────────────────────────────────────────
+
+/**
+ * First frame on every WebSocket route. The bridge closes the socket with
+ * code 4401 when it is missing, late (> 2 s) or carries a wrong token.
+ */
+export interface HelloFrame {
+	type: "hello";
+	token: string;
+}
 
 // ── Error response ──────────────────────────────────────────────────────────
 

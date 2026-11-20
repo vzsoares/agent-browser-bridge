@@ -23,6 +23,7 @@ import type {
 } from "@agent-browser-bridge/protocol";
 import { type WebSocket, WebSocket as WSClient } from "ws";
 import {
+	createConnectionResetError,
 	createNotConnectedError,
 	createOwnerNotConnectedError,
 	createSendFailedError,
@@ -98,6 +99,45 @@ export function getWsConnectionCount(): number {
 /** Get the first active Chrome-extension WebSocket (or undefined). */
 export function getAnyConnection(): WebSocket | undefined {
 	return wsConnections.values().next().value;
+}
+
+/**
+ * Make `ws` the only extension connection. Older sockets are closed with
+ * `closeCode`, and every in-flight request (local or relayed) fails with
+ * `CONNECTION_RESET`, since it was sent on an old socket.
+ */
+export function replaceExtensionConnection(
+	ws: WebSocket,
+	closeCode: number,
+): void {
+	if (wsConnections.size > 0) {
+		const reset = createConnectionResetError();
+		for (const [id, pending] of pendingRequests) {
+			clearTimeout(pending.timer);
+			pendingRequests.delete(id);
+			pending.reject(reset);
+		}
+		for (const [id, clientWs] of clientToRequest) {
+			const timer = requestTimers.get(id);
+			if (timer) clearTimeout(timer);
+			requestTimers.delete(id);
+			clientToRequest.delete(id);
+			try {
+				clientWs.send(JSON.stringify({ id, error: reset }));
+			} catch {
+				/* client already gone */
+			}
+		}
+		for (const old of wsConnections) {
+			try {
+				old.close(closeCode, "Replaced by a newer extension connection");
+			} catch {
+				/* already closed */
+			}
+		}
+		wsConnections.clear();
+	}
+	wsConnections.add(ws);
 }
 
 /** Close and remove all tracked connections. */

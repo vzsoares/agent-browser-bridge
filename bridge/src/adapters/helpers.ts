@@ -9,8 +9,8 @@
  * @module adapters/helpers
  */
 
-import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import type { ErrorResponse } from "@agent-browser-bridge/protocol";
+import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 
 export type TextBlock = { type: "text"; text: string };
 export type ImageBlock = {

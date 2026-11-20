@@ -45,7 +45,7 @@ export async function executeCreateTab(
 export const browserCreateTabTool = {
 	name: "browser_create_tab",
 	description:
-		"Create a new browser tab and (optionally) navigate it to a URL. Returns the new tab's id, url, and title.",
+		"Create a new tab in the user's real, logged-in Chrome and (optionally) navigate it to a URL. Returns the new tab's id, url, and title.",
 	inputSchema: CreateTabSchema.shape,
 	execute: executeCreateTab,
 } as const;

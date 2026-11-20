@@ -53,7 +53,7 @@ export async function executeNavigate(
 export const browserNavigateTool = {
 	name: "browser_navigate",
 	description:
-		"Navigate the browser to a URL. Optionally target a specific tab via tabId; when omitted, defaults to the active tab or creates a new tab. Supports waiting for page load, DOMContentLoaded, or network idle.",
+		"Navigate the user's real, logged-in Chrome to a URL. Optionally target a specific tab via tabId; when omitted, defaults to the active tab or creates a new tab. Supports waiting for page load, DOMContentLoaded, or network idle.",
 	inputSchema: NavigateSchema.shape,
 	execute: executeNavigate,
 } as const;

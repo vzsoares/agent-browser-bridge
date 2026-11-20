@@ -67,12 +67,11 @@ export interface ServerHandle {
  */
 export interface ServerLifecycle {
 	/**
-	 * Start the server on the given port (or default).
+	 * Start the server. Unset options come from the environment.
 	 *
-	 * @param port — Override the default port. Pass `0` for OS-assigned port.
 	 * @returns A handle with the bound port number.
 	 */
-	start(port?: number): Promise<ServerHandle>;
+	start(options?: { port?: number }): Promise<ServerHandle>;
 
 	/**
 	 * Gracefully shut down the server.

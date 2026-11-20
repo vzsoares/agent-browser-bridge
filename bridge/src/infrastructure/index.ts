@@ -11,10 +11,16 @@
  * @module infrastructure
  */
 
+export {
+	type BridgeOptions,
+	DEFAULT_EXTENSION_ID,
+	resolveBridgeOptions,
+} from "./auth.js";
 export type { ClientConnection } from "./ws-failover.js";
 export {
 	clearClientState,
 	closeClientSocket,
+	dialHost,
 	getClientSequenceNumber,
 	getClientSocket,
 	getReconnectPort,
@@ -48,4 +54,5 @@ export {
 	rejectAllPending,
 	removeClientSequence,
 	removeWsConnection,
+	replaceExtensionConnection,
 } from "./ws-transport.js";

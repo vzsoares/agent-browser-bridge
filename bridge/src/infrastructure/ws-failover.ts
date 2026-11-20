@@ -15,6 +15,7 @@
 
 import { createLogger } from "@agent-browser-bridge/logger";
 import { WebSocket as WSClient } from "ws";
+import { readTokenFile } from "./auth.js";
 
 const logger = createLogger("bridge:failover");
 
@@ -92,80 +93,83 @@ export interface ClientConnection {
 	port: number;
 }
 
+/** Host to dial for a server bound to `bindHost`. */
+export function dialHost(bindHost: string): string {
+	if (bindHost === "0.0.0.0" || bindHost === "") return "127.0.0.1";
+	if (bindHost === "::") return "[::1]";
+	return bindHost.includes(":") ? `[${bindHost}]` : bindHost;
+}
+
 /**
  * Try to connect to an existing owner server as a client.
  *
- * Creates a WebSocket to `ws://localhost:{port}/client`, waits for the
- * welcome handshake (which assigns a failover sequence number), and
- * returns the live socket.
+ * Dials `/client`, sends the `hello` with the token read from
+ * `tokenFile`, and resolves once the owner's welcome (which assigns the
+ * failover sequence) arrives. Resolves `null` when there is no token, no
+ * owner within 1.5 s, or the owner closes before welcoming (e.g. 4401).
  *
- * The caller is responsible for:
- * - Attaching a `message` handler to route incoming data (via
- *   `onMessage`).
- * - Attaching a `close` handler to detect disconnection and trigger
- *   failover.
- *
- * @param port — The owner server port.
- * @param onMessage — Callback for every incoming message (after welcome
- *   interception).  Typically wired to `handleMessage` from the transport.
- * @returns `null` if no owner server is reachable within 1.5 s, or a
- *   {@link ClientConnection} on success.
+ * The caller attaches the `close` handler that triggers failover.
  */
 export function tryConnectAsClient(
 	port: number,
+	bindHost: string,
+	tokenFile: string,
 	onMessage: (data: string) => void,
 ): Promise<ClientConnection | null> {
-	return new Promise((resolve) => {
-		const url = `ws://localhost:${port}/client`;
-		const ws = new WSClient(url);
+	const token = readTokenFile(tokenFile);
+	if (token === null) return Promise.resolve(null);
 
-		const timeout = setTimeout(() => {
-			ws.close();
-			resolve(null);
-		}, 1500);
+	return new Promise((resolve) => {
+		const ws = new WSClient(`ws://${dialHost(bindHost)}:${port}/client`);
+		let settled = false;
+		const finish = (result: ClientConnection | null) => {
+			if (settled) return;
+			settled = true;
+			clearTimeout(timeout);
+			if (!result) ws.terminate();
+			resolve(result);
+		};
+		const timeout = setTimeout(() => finish(null), 1500);
 
 		ws.on("open", () => {
-			clearTimeout(timeout);
-
-			let welcomed = false;
-
-			ws.on("message", (data) => {
-				const raw = data.toString();
-
-				// Intercept welcome message from owner (assigns failover priority)
-				if (!welcomed) {
-					try {
-						const msg = JSON.parse(raw);
-						if (msg.type === "welcome" && typeof msg.sequence === "number") {
-							clientSequenceNumber = msg.sequence;
-							welcomed = true;
-							logger.info(
-								`Connected as client to owner server on port ${port} ` +
-									`(sequence ${clientSequenceNumber})`,
-							);
-							return;
-						}
-					} catch {
-						// Not JSON or not a welcome message — fall through to onMessage
-					}
-				}
-
-				// Forward all other messages to the transport layer
-				onMessage(raw);
-			});
-
-			ws.on("error", (err) => {
-				logger.error("Client socket error:", err.message);
-			});
-
-			resolve({ ws, port });
+			ws.send(JSON.stringify({ type: "hello", token }));
 		});
 
-		ws.on("error", () => {
-			clearTimeout(timeout);
-			resolve(null);
+		ws.on("message", (data) => {
+			const raw = data.toString();
+			if (!settled) {
+				const sequence = parseWelcome(raw);
+				if (sequence !== null) {
+					clientSequenceNumber = sequence;
+					logger.info(
+						`Connected as client to owner on port ${port} (sequence ${sequence})`,
+					);
+					finish({ ws, port });
+				}
+				return;
+			}
+			onMessage(raw);
+		});
+
+		ws.on("close", () => finish(null));
+		ws.on("error", (err) => {
+			if (settled) logger.error("Client socket error:", err.message);
+			else finish(null);
 		});
 	});
+}
+
+function parseWelcome(raw: string): number | null {
+	let msg: unknown;
+	try {
+		msg = JSON.parse(raw);
+	} catch {
+		return null;
+	}
+	if (typeof msg !== "object" || msg === null) return null;
+	if (!("type" in msg) || msg.type !== "welcome") return null;
+	if (!("sequence" in msg) || typeof msg.sequence !== "number") return null;
+	return msg.sequence;
 }
 
 /**

@@ -15,6 +15,7 @@ export type {
 	ErrorResponse,
 	ExecParams,
 	ExecResult,
+	HelloFrame,
 	ListTabsParams,
 	NavigateParams,
 	ReadParams,

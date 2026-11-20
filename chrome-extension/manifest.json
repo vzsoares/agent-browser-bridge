@@ -1,9 +1,11 @@
 {
 	"manifest_version": 3,
 	"name": "Agent Browser Bridge",
-	"version": "0.1.0",
+	"version": "2.0.0",
+	"minimum_chrome_version": "120",
+	"key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAxpiU2EdeidvgmTOvGHiP66qpzAXyBtjKAdGzKQ4fB4M95vpYm1VuGIaCF+eRrzVYdcso5UGoK+P8ZJe4395poKEuGkq+SH6A3dHZkn7VbhZECq7OWM2qeU2qPuJNcsMY2BvQhvrHFlVFLbhE9PB5rcekf7zinSkfzkP+Ec7Wcy0/AEeBxR39vocEEY580XQAHl8hnFcw6BQyFrr/dC8mAFZRmYOr07wvGGvz2Ivb44EJ13yMeOeW9e7Wmu7LyRWJE2Oa5fezCiMR2RRhfJKYdZYo5BPZkTOyLSQI2dKFQbViR+rkMSnTVrkCWlqiMo3hMzEFe1vYtaSChadxJfJInwIDAQAB",
 	"description": "Bridge between a coding agent (via MCP) and the browser, enabling browser automation from any MCP-compatible client.",
-	"permissions": ["activeTab", "scripting", "storage", "tabs"],
+	"permissions": ["scripting", "storage", "tabs"],
 	"host_permissions": ["<all_urls>"],
 	"background": {
 		"service_worker": "src/background/background.ts"

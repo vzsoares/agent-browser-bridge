@@ -44,7 +44,7 @@ export async function executeListTabs(
 export const browserListTabsTool = {
 	name: "browser_list_tabs",
 	description:
-		"List browser tabs, optionally filtered by URL or title substring. By default only returns tabs from the current window.",
+		"List tabs in the user's real, logged-in Chrome, optionally filtered by URL or title substring. By default only returns tabs from the current window.",
 	inputSchema: ListTabsSchema.shape,
 	execute: executeListTabs,
 } as const;

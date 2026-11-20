@@ -1,0 +1,2 @@
+# Chrome manifest "key" is the extension public key (pins the unpacked ID), not a secret
+chrome-extension/manifest.json:generic-api-key:6

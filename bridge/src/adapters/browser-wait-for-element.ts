@@ -48,7 +48,7 @@ export async function executeWaitForElement(
 export const browserWaitForElementTool = {
 	name: "browser_wait_for_element",
 	description:
-		"Wait for a CSS selector to match an element in the page. Resolves with timing info once the element appears.",
+		"Wait for a CSS selector to match an element in a page of the user's real, logged-in Chrome. Resolves with timing info once the element appears.",
 	inputSchema: WaitForElementSchema.shape,
 	execute: executeWaitForElement,
 } as const;

@@ -55,7 +55,7 @@ export async function executeRead(
 export const browserReadTool = {
 	name: "browser_read",
 	description:
-		"Read the text content of the browser tab. Optionally target a specific tab via tabId; when omitted, defaults to the active tab. Can scope to a CSS selector or read the entire page body.",
+		"Read the text content of a tab in the user's real, logged-in Chrome. Optionally target a specific tab via tabId; when omitted, defaults to the active tab. Can scope to a CSS selector or read the entire page body.",
 	inputSchema: ReadSchema.shape,
 	execute: executeRead,
 } as const;

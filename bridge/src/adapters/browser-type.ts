@@ -50,7 +50,7 @@ export async function executeType(
 export const browserTypeTool = {
 	name: "browser_type",
 	description:
-		"Type text into an input, textarea, or contenteditable element in the browser. Optionally clear the existing value first and/or press Enter to submit afterwards.",
+		"Type text into an input, textarea, or contenteditable element in the user's real, logged-in Chrome. Optionally clear the existing value first and/or press Enter to submit afterwards.",
 	inputSchema: TypeSchema.shape,
 	execute: executeType,
 } as const;

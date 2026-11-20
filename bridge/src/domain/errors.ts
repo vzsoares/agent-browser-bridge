@@ -34,6 +34,7 @@ export function categorizeErrorCode(code: ErrorCode): ErrorCategory {
 			return "timeout";
 		case "BROWSER_NOT_CONNECTED":
 		case "CONNECTION_RESET":
+		case "UNAUTHORIZED":
 			return "not_connected";
 		case "INVALID_URL":
 		case "UNKNOWN_ACTION":
@@ -81,6 +82,18 @@ export function createNotConnectedError(): ErrorResponse {
 		message: "No browser extension is connected to the WebSocket server.",
 		suggestion:
 			"Make sure the Agent Browser Bridge Chrome extension is installed and running.",
+	};
+}
+
+/**
+ * Create a "connection reset" error: the extension socket that carried the
+ * request was replaced or dropped mid-request.
+ */
+export function createConnectionResetError(): ErrorResponse {
+	return {
+		code: "CONNECTION_RESET",
+		message: "The browser extension connection was reset during the request.",
+		suggestion: "Retry the request once the extension reconnects.",
 	};
 }
 
