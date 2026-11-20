@@ -32,7 +32,8 @@ beforeEach(() => {
 	sockets.length = 0;
 	store = { [PAIR_TOKEN_KEY]: "a".repeat(64) };
 
-	const ws = vi.fn((url: string) => {
+	// biome-ignore lint/complexity/useArrowFunction: `new WebSocket()` needs a constructible function
+	const ws = vi.fn(function (url: string) {
 		const s = createMockWebSocket({ url, connectOnCreate: false });
 		sockets.push(s);
 		return s;

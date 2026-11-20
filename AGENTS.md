@@ -10,7 +10,7 @@ MCP server that bridges any MCP-compatible coding agent (Claude Code, Claude Des
 | Language | TypeScript (strict mode) |
 | MCP SDK | `@modelcontextprotocol/sdk` (stdio transport) |
 | Validation | `zod` (shared schemas across MCP input + use cases) |
-| Server runtime | Hono + `ws` for the WebSocket relay |
+| Server runtime | `Bun.serve` WebSocket server (Hono for plain HTTP), `ws` client for failover |
 | Package manager | Bun (workspaces) |
 
 ## Common Commands

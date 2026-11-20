@@ -34,6 +34,7 @@ cd agent-browser-bridge && bun install
 # 2. Build & load the Chrome extension
 cd chrome-extension && bun run build
 # → chrome://extensions → "Load unpacked" → select chrome-extension/dist/
+#   The manifest pins the ID jjlgogdanhhkgglgckdpigepfniilinm on every machine.
 
 # 3. Register the MCP server with Claude Code
 #    NB: the path MUST be absolute — Claude Code spawns the process from
@@ -43,9 +44,23 @@ claude mcp add --transport stdio --scope user agent-browser-bridge \
   -- bun "$(pwd)/bridge/src/mcp/server.ts"
 ```
 
+Then pair the extension once per machine. The bridge creates `~/.config/agent-browser-bridge/pair.token` on its first start. Paste its contents into the extension popup's **Pairing token** field:
+
+```bash
+cat ~/.config/agent-browser-bridge/pair.token
+```
+
 Verify with `claude mcp list` — you should see `agent-browser-bridge: ... ✓ Connected`. If you see `✗ Failed to connect`, the most common cause is a relative or placeholder path in the registration; re-run the command above from the repo root.
 
-Open Claude Code — the extension badge turns 🟢 green when connected, and the 11 `browser_*` tools are available.
+Open Claude Code. The extension badge shows **ON** (green) when connected, and the 11 `browser_*` tools are available.
+
+| Badge | Meaning |
+|---|---|
+| `OFF` grey | Toggle off, or replaced by a newer connection |
+| `…` amber | Connecting / reconnecting |
+| `ON` green | Connected |
+| `ON` blue | A request is running |
+| `KEY` red | Not paired: no token saved, or the bridge rejected it |
 
 ## What the agent can do
 
@@ -138,16 +153,30 @@ Everything stays on `localhost`. No cloud, no accounts, no telemetry.
 | Variable | Default | What |
 |---|---|---|
 | `AGENT_BROWSER_PORT` | `9242` | WebSocket port |
-| `AGENT_BROWSER_BRIDGE_LOG_LEVEL` | `silent` | `debug` / `info` / `warn` / `error` / `silent` |
+| `AGENT_BROWSER_HOST` | `127.0.0.1` | Bind address (`0.0.0.0` only inside a container whose port is published to the host's loopback) |
+| `AGENT_BROWSER_PAIR_TOKEN_FILE` | `~/.config/agent-browser-bridge/pair.token` | Pairing token file (created 0600 on first start) |
+| `AGENT_BROWSER_EXTENSION_ID` | `jjlgogdanhhkgglgckdpigepfniilinm` | Extension ID allowed in the `Origin` header |
+| `AGENT_BROWSER_CLIENT` | on | `off` removes the `/client` failover route and skips client-mode start |
+| `AGENT_BROWSER_BRIDGE_LOG_LEVEL` | `silent` | `debug` / `info` / `warn` / `error` / `silent` (logs go to stderr) |
 
-The extension popup lets you toggle the bridge on/off and restrict which domains the agent can touch. Default: `*` (all domains).
+The extension popup lets you:
+- toggle the bridge on or off (off closes the socket and stops reconnecting)
+- paste the pairing token
+- restrict which domains the agent can touch (default `*`, all domains)
+- review the **action log**
+
+The action log keeps the last 1,000 actions in the extension's own storage, out of the agent's reach. The popup shows the last 50, with **Download JSONL** and **Clear**. Each entry records time, action, tab, `origin + pathname` (no query or fragment), selector, ok/error code and duration. For `type` it keeps only the text length, and for `exec` the first 500 characters of the code. Page content and results are never stored.
 
 ## Security
 
-- **localhost only** — no network exposure
-- **Domain allowlist** — restrict which sites the agent can control
+- **Loopback only**: binds `127.0.0.1` by default.
+- **Pairing token**: every WebSocket must send `{"type":"hello","token":…}` within 2 s, or it is closed with 4401.
+- **Pinned Origin**: `/` only upgrades for `chrome-extension://<pinned id>`, so web pages can't open it (403). `/client` refuses any Origin and needs a per-start token.
+- **One extension at a time**: a newer authenticated extension replaces the older one.
+- **Domain allowlist**: restricts which sites the agent can control.
+- **Action log**: kept in the extension, where the agent can't edit it.
 - **Isolated content script** — page JS can't touch extension internals
-- **Minimal permissions** — `activeTab`, `scripting`, `storage`, `tabs`
+- **Minimal permissions**: `scripting`, `storage`, `tabs`.
 
 ## How it compares
 

@@ -192,12 +192,33 @@ interface ErrorResponse {
 | `BROWSER_NOT_CONNECTED` | No Chrome extension connected | Install/check the extension; verify the icon shows green |
 | `CONNECTION_RESET` | WebSocket connection lost during request | Auto-retries (up to 3 attempts); restart extension if persistent |
 | `UNKNOWN_ACTION` | Action not recognised or payload malformed | Check against supported actions |
+| `UNAUTHORIZED` | The socket did not authenticate (missing, wrong or late `hello`) | Paste the pairing token into the extension popup |
 
 ---
 
 ## WebSocket Protocol
 
-The bridge MCP server runs a WebSocket server. The Chrome extension connects as a client. Messages are JSON with request/response correlation via `id`.
+The bridge MCP server runs a WebSocket server (default `127.0.0.1:9242`). The Chrome extension connects as a client. Messages are JSON with request/response correlation via `id`.
+
+### Routes and authentication
+
+| Route | Who | Upgrade allowed when | First frame |
+|---|---|---|---|
+| `/` | The Chrome extension | `Origin` is `chrome-extension://<id>` (`AGENT_BROWSER_EXTENSION_ID`, default the pinned ID); otherwise **403** | `{"type":"hello","token":"<pairing token>"}` |
+| `/client` | Another bridge instance (host failover) | No `Origin` header at all; otherwise **403**. Absent (**404**) when `AGENT_BROWSER_CLIENT=off` | `{"type":"hello","token":"<client token>"}` |
+
+The `hello` must arrive within 2 s. A missing, wrong or late token closes the socket with **4401**; nothing is relayed before it, and the hello itself is never forwarded. Tokens are compared in constant time.
+
+- **Pairing token**: read from `AGENT_BROWSER_PAIR_TOKEN_FILE`, else `~/.config/agent-browser-bridge/pair.token`. Created on first start (32 random bytes, hex, mode 0600). There is no flag that turns auth off.
+- **Client token**: the owner writes a fresh one to `~/.config/agent-browser-bridge/client.token` (0600) at every start; client-mode instances read it.
+
+### Close codes
+
+| Code | Meaning | Extension behaviour |
+|---|---|---|
+| `1000` | Bridge shut down (or the toggle was switched off) | Reconnects with backoff (1 s → 5 s cap) unless the toggle is off |
+| `4000` | A newer extension connection replaced this one; its in-flight requests fail with `CONNECTION_RESET` | Stays off until toggled |
+| `4401` | Unauthorized | Shows "Not paired"; reconnects once a new token is saved |
 
 ### Request (bridge → browser)
 
@@ -240,7 +261,7 @@ The bridge MCP server runs a WebSocket server. The Chrome extension connects as 
 | `click` | Content script | DOM query + `.click()` with interactability checks |
 | `type` | Content script | Native value setter + `input`/`change` event dispatch |
 | `read` | Content script | Recursive DOM walk with text extraction |
-| `exec` | Content script | `eval()` in isolated world with 5s timeout |
+| `exec` | Service worker | `chrome.scripting.executeScript` in the page's MAIN world |
 | `waitForElement` | Content script | MutationObserver + 100ms polling fallback |
 | `waitForText` | Content script | `textContent` polling at 100ms intervals |
 
