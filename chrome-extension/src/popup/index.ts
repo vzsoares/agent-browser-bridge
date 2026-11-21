@@ -325,10 +325,9 @@ const pairState = document.getElementById("pair-state");
 
 async function loadPairState(): Promise<void> {
 	if (!pairState) return;
-	pairState.textContent = (await getPairToken())
-		? PAIR_SAVED
-		: "Not paired: no token saved.";
-	pairState.className = "hint";
+	const saved = Boolean(await getPairToken());
+	pairState.textContent = saved ? PAIR_SAVED : "Not paired: no token saved.";
+	pairState.className = saved ? "hint success" : "hint";
 }
 
 pairSave?.addEventListener("click", async () => {

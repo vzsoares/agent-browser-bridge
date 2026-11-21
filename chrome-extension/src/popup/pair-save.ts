@@ -1,3 +1,7 @@
+import { createLogger } from "@agent-browser-bridge/logger";
+
+const logger = createLogger("chrome-ext:pair-save");
+
 export interface PairSaveResult {
 	ok: boolean;
 	message: string;
@@ -18,7 +22,8 @@ export async function submitPairToken(
 	try {
 		await save(token);
 		return { ok: true, message: PAIR_SAVED };
-	} catch {
+	} catch (e: unknown) {
+		logger.error("Failed to save pairing token:", e);
 		return { ok: false, message: PAIR_FAILED };
 	}
 }
