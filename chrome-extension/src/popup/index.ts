@@ -85,6 +85,7 @@ function updateStatusUI(
 	port: number = currentPort,
 ): void {
 	currentPort = port;
+	if (infoPort) infoPort.textContent = String(port);
 	if (statusDot) {
 		statusDot.className = `status-dot ${status}`;
 	}
