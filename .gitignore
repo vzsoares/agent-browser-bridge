@@ -43,3 +43,7 @@ report.[0-9]_.[0-9]_.[0-9]_.[0-9]_.json
 # Tasks
 tasks.json
 tasks/
+
+# Extension packaging / signing key
+chrome-extension/dist.crx
+*.pem

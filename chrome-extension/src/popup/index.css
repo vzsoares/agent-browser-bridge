@@ -530,3 +530,11 @@ button.primary:hover {
 .action-log .muted {
 	color: var(--text-muted);
 }
+
+.hint.success {
+	color: var(--green);
+}
+
+.hint.error {
+	color: var(--red);
+}

@@ -13,6 +13,7 @@ import {
 	PAIR_TOKEN_KEY,
 	savePairToken,
 } from "../infrastructure/chrome-storage.js";
+import { PAIR_SAVED, submitPairToken } from "./pair-save.js";
 
 const logger = createLogger("chrome-ext:popup");
 
@@ -223,7 +224,10 @@ async function saveAllowlist(): Promise<void> {
 function resetAllowlist(): void {
 	if (!textarea) return;
 	textarea.value = DEFAULT_ALLOWLIST.join("\n");
-	setStatusMessage("Reset to default (*). Click Save to apply.", true);
+	setStatusMessage(
+		"Reset to default (*). Click Save allowlist to apply.",
+		true,
+	);
 }
 
 // ── Tab list ────────────────────────────────────────────────────────────────
@@ -322,26 +326,17 @@ const pairState = document.getElementById("pair-state");
 async function loadPairState(): Promise<void> {
 	if (!pairState) return;
 	pairState.textContent = (await getPairToken())
-		? "Token saved."
+		? PAIR_SAVED
 		: "Not paired: no token saved.";
+	pairState.className = "hint";
 }
 
 pairSave?.addEventListener("click", async () => {
-	if (!(pairInput instanceof HTMLInputElement)) return;
-	const token = pairInput.value.trim();
-	if (token.length === 0 || /\s/.test(token)) {
-		setStatusMessage("Paste the pairing token (no spaces).", false);
-		return;
-	}
-	try {
-		await savePairToken(token);
-		pairInput.value = "";
-		setStatusMessage("Pairing token saved.", true);
-		await loadPairState();
-	} catch (e: unknown) {
-		logger.error("Failed to save pairing token:", e);
-		setStatusMessage("Failed to save the pairing token.", false);
-	}
+	if (!(pairInput instanceof HTMLInputElement) || !pairState) return;
+	const result = await submitPairToken(pairInput.value, savePairToken);
+	if (result.ok) pairInput.value = "";
+	pairState.textContent = result.message;
+	pairState.className = `hint ${result.ok ? "success" : "error"}`;
 });
 
 // ── Action log ────────────────────────────────────────────────────────────
