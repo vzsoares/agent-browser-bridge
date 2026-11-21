@@ -107,6 +107,10 @@ body {
 	background: var(--text-muted);
 }
 
+.status-dot.waiting {
+	background: var(--text-muted);
+}
+
 .status-dot.unpaired {
 	background: var(--red);
 	box-shadow: 0 0 6px rgba(239, 68, 68, 0.4);
@@ -139,6 +143,10 @@ body {
 }
 
 .status-label.disconnected {
+	color: var(--text-muted);
+}
+
+.status-label.waiting {
 	color: var(--text-muted);
 }
 

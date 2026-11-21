@@ -14,6 +14,7 @@ import {
 	savePairToken,
 } from "../infrastructure/chrome-storage.js";
 import { PAIR_SAVED, submitPairToken } from "./pair-save.js";
+import { statusLabelText } from "./status-label.js";
 
 const logger = createLogger("chrome-ext:popup");
 
@@ -62,6 +63,8 @@ const refreshTabsBtn = document.getElementById(
 ) as HTMLButtonElement | null;
 const tabListEl = document.getElementById("tab-list") as HTMLDivElement | null;
 
+let currentPort = 9242;
+
 // ── Status helpers ────────────────────────────────────────────────────────
 
 function setStatusMessage(message: string, success: boolean): void {
@@ -76,20 +79,18 @@ function setStatusMessage(message: string, success: boolean): void {
 	}, 3000);
 }
 
-const STATUS_LABELS: Record<ConnectionStatus, string> = {
-	connected: "Connected",
-	connecting: "Connecting…",
-	disconnected: "Off",
-	unpaired: "Not paired — paste the pairing token",
-};
-
-function updateStatusUI(status: ConnectionStatus, connectedAt?: string): void {
+function updateStatusUI(
+	status: ConnectionStatus,
+	connectedAt?: string,
+	port: number = currentPort,
+): void {
+	currentPort = port;
 	if (statusDot) {
 		statusDot.className = `status-dot ${status}`;
 	}
 	if (statusLabel) {
 		statusLabel.className = `status-label ${status}`;
-		statusLabel.textContent = STATUS_LABELS[status];
+		statusLabel.textContent = statusLabelText(status, port);
 	}
 	if (infoConnected && connectedAt) {
 		infoConnected.style.display = "flex";
@@ -117,7 +118,7 @@ async function loadBridgeState(): Promise<void> {
 			const port = typeof cfg.port === "number" ? cfg.port : 9242;
 			const enabled = typeof cfg.enabled === "boolean" ? cfg.enabled : true;
 
-			updateStatusUI(status, connectedAt);
+			updateStatusUI(status, connectedAt, port);
 
 			if (infoPort) infoPort.textContent = String(port);
 			if (bridgeToggle) bridgeToggle.checked = enabled;
@@ -148,7 +149,11 @@ chrome.storage.onChanged.addListener((changes, areaName) => {
 			"connectedAt" in state && typeof state.connectedAt === "string"
 				? state.connectedAt
 				: undefined;
-		updateStatusUI(status, connectedAt);
+		const port =
+			"port" in state && typeof state.port === "number"
+				? state.port
+				: currentPort;
+		updateStatusUI(status, connectedAt, port);
 	}
 });
 

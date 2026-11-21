@@ -23,6 +23,7 @@ export type ConnectionStatus =
 	| "connected"
 	| "disconnected"
 	| "connecting"
+	| "waiting"
 	| "unpaired";
 
 export function isConnectionStatus(v: unknown): v is ConnectionStatus {
@@ -30,6 +31,7 @@ export function isConnectionStatus(v: unknown): v is ConnectionStatus {
 		v === "connected" ||
 		v === "disconnected" ||
 		v === "connecting" ||
+		v === "waiting" ||
 		v === "unpaired"
 	);
 }

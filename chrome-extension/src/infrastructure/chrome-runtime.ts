@@ -38,6 +38,11 @@ export const STATUS_CONFIG: Record<ConnectionStatus, BadgeStyle> = {
 		color: "#f59e0b",
 		title: "Agent Browser Bridge — Connecting…",
 	},
+	waiting: {
+		badge: "IDLE",
+		color: "#6b7280",
+		title: "Agent Browser Bridge — Waiting for an agent",
+	},
 	unpaired: {
 		badge: "KEY",
 		color: "#ef4444",

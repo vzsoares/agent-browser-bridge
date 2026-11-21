@@ -635,7 +635,7 @@ describe("WebSocketClient — status changes", () => {
 		expect(onStatusChange).toHaveBeenCalledWith("disconnected");
 	});
 
-	test("calls onStatusChange with 'connecting' during reconnect", async () => {
+	test("calls onStatusChange with 'waiting' between reconnect attempts", async () => {
 		vi.useFakeTimers();
 
 		const onStatusChange = vi.fn();
@@ -654,10 +654,11 @@ describe("WebSocketClient — status changes", () => {
 
 		getWsInstance().simulateClose(1006, "Abnormal");
 
-		// The reconnect schedule sets status to "connecting"
-		expect(onStatusChange).toHaveBeenCalledWith("connecting");
+		expect(onStatusChange).toHaveBeenCalledWith("waiting");
+		expect(onStatusChange).not.toHaveBeenCalledWith("connecting");
 
 		await vi.advanceTimersByTimeAsync(1100);
+		expect(onStatusChange).toHaveBeenCalledWith("connecting");
 
 		// After reconnect, simulate open on the NEW instance
 		simulateOpen();

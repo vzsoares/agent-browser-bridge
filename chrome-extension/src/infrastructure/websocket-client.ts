@@ -235,7 +235,7 @@ export class WebSocketClient {
 		this.logger.info(
 			`Reconnecting in ${delay}ms (attempt ${this.reconnectAttempt})…`,
 		);
-		this.updateStatus("connecting");
+		this.updateStatus("waiting");
 		this.reconnectTimer = setTimeout(() => this.connect(), delay);
 	}
 
