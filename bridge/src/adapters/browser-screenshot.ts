@@ -60,7 +60,7 @@ export async function executeScreenshot(
 export const browserScreenshotTool = {
 	name: "browser_screenshot",
 	description:
-		"Capture a screenshot of the active tab in the user's real, logged-in Chrome. Returns a base64-encoded image in PNG or JPEG format. Note: tabId is not supported for screenshots in v1; always captures the active tab.",
+		"Capture a screenshot of a tab in the user's real, logged-in Chrome. Returns a base64-encoded image in PNG or JPEG format. Captures the active tab by default. With tabId, the tab is briefly brought to the front for the capture and the previously active tab is restored afterwards.",
 	inputSchema: ScreenshotSchema.shape,
 	execute: executeScreenshot,
 } as const;

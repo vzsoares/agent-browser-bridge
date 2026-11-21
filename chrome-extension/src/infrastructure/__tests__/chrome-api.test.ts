@@ -482,6 +482,16 @@ describe("chrome-tabs — updateTab", () => {
 });
 
 describe("chrome-tabs — captureVisibleTab", () => {
+	test("passes windowId first when provided", async () => {
+		chromeTabsMock.captureVisibleTab.mockResolvedValue(
+			"data:image/png;base64,x",
+		);
+		await captureVisibleTab("png", undefined, 7);
+		expect(chromeTabsMock.captureVisibleTab).toHaveBeenCalledWith(7, {
+			format: "png",
+		});
+	});
+
 	test("calls chrome.tabs.captureVisibleTab with correct options", async () => {
 		const dataUrl = "data:image/png;base64,abc123";
 		chromeTabsMock.captureVisibleTab.mockResolvedValue(dataUrl);

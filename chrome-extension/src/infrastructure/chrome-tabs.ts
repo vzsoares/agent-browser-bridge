@@ -113,6 +113,23 @@ export async function updateTab(
 	return chrome.tabs.update(tabId, { url });
 }
 
+/** Make a tab the active tab of its window. */
+export async function activateTab(tabId: number): Promise<void> {
+	await chrome.tabs.update(tabId, { active: true });
+}
+
+/** Return the active tab ID of a window, or null. */
+export async function getActiveTabIdInWindow(
+	windowId: number,
+): Promise<number | null> {
+	try {
+		const [tab] = await chrome.tabs.query({ active: true, windowId });
+		return tab?.id ?? null;
+	} catch {
+		return null;
+	}
+}
+
 /**
  * List all open tabs with optional filtering.
  *
@@ -163,19 +180,24 @@ export async function closeTab(tabId: number): Promise<boolean> {
 // ── Screenshot helpers ────────────────────────────────────────────────────
 
 /**
- * Capture the visible area of the current window.
+ * Capture the visible area of the active tab in a window.
  *
  * @param format — Image format ("png" or "jpeg"). Default "png".
  * @param quality — JPEG quality (0‑100). Ignored for PNG.
+ * @param windowId — Window to capture. Defaults to the current window.
  * @returns A `data:` URL string.
  */
 export async function captureVisibleTab(
 	format?: "png" | "jpeg",
 	quality?: number,
+	windowId?: number,
 ): Promise<string> {
 	const options: { format?: "png" | "jpeg"; quality?: number } = {};
 	if (format) options.format = format;
 	if (quality !== undefined) options.quality = quality;
+	if (windowId !== undefined) {
+		return chrome.tabs.captureVisibleTab(windowId, options);
+	}
 	return chrome.tabs.captureVisibleTab(options);
 }
 

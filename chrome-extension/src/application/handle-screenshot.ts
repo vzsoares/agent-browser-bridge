@@ -20,13 +20,27 @@ import {
 
 // ── Dependency injection interface ──────────────────────────────────────
 
+/** Minimal tab descriptor needed for a targeted capture. */
+export interface TabInfo {
+	url: string | null;
+	windowId: number;
+	active: boolean;
+}
+
 /** Infrastructure dependencies injected by the caller. */
 export interface ScreenshotDependencies {
 	/** Capture the visible area of the active tab. Returns a `data:` URL. */
 	captureVisibleTab: (
 		format: "png" | "jpeg",
 		quality?: number,
+		windowId?: number,
 	) => Promise<string>;
+	/** Look up a tab by ID; null when it does not exist. */
+	getTab: (tabId: number) => Promise<TabInfo | null>;
+	/** Make a tab the active tab of its window. */
+	activateTab: (tabId: number) => Promise<void>;
+	/** The active tab ID of the given window. */
+	getActiveTabIdInWindow: (windowId: number) => Promise<number | null>;
 	/** Read the current active tab's URL (for restriction checks). */
 	getActiveTabUrl: () => Promise<string | null>;
 	/** The active tab ID to include in response payloads. */
@@ -40,11 +54,13 @@ export interface ScreenshotDependencies {
  *
  * 1. Validate parameters via domain logic.
  * 2. Check URL restrictions (block chrome://, edge://, etc.).
- * 3. Delegate the capture to the injected {@link ScreenshotDependencies.captureVisibleTab}.
- * 4. Return the base64-encoded image data.
+ * 3. With a `tabId`, activate that tab (captureVisibleTab only sees the
+ *    active tab) and restore the previously active tab afterwards.
+ * 4. Delegate the capture to the injected {@link ScreenshotDependencies.captureVisibleTab}.
+ * 5. Return the base64-encoded image data.
  *
  * @param id — Request correlation ID.
- * @param params — Raw screenshot parameters (format?, quality?, fullPage?).
+ * @param params — Raw screenshot parameters (tabId?, format?, quality?, fullPage?).
  * @param deps — Infrastructure dependencies.
  * @returns A protocol Response with either the image data or a structured error.
  */
@@ -53,20 +69,6 @@ export async function handleScreenshot(
 	params: unknown,
 	deps: ScreenshotDependencies,
 ): Promise<Response> {
-	// ── 0. Reject tabId (Chrome API limitation) ─────────────────────────
-	if (typeof params === "object" && params !== null && "tabId" in params) {
-		return {
-			id,
-			error: {
-				code: "UNKNOWN_ACTION" as const,
-				message:
-					"Screenshot with tabId is not supported. Chrome's captureVisibleTab API can only capture the currently active tab.",
-				suggestion:
-					"Bring the target tab to the front (e.g. use 'navigate' to switch to it) and then take a screenshot without tabId.",
-			},
-		};
-	}
-
 	// ── 1. Validate parameters ──────────────────────────────────────────
 	const validated = validateScreenshotParams(params);
 
@@ -82,9 +84,27 @@ export async function handleScreenshot(
 		};
 	}
 
-	// ── 2. Check URL restrictions ───────────────────────────────────────
+	// ── 2. Resolve target tab ───────────────────────────────────────────
+	let targetTabId = deps.activeTabId;
+	let targetTab: TabInfo | null = null;
+	if (validated.tabId !== undefined) {
+		targetTabId = validated.tabId;
+		targetTab = await deps.getTab(validated.tabId);
+		if (!targetTab) {
+			return {
+				id,
+				error: {
+					code: "TAB_NOT_FOUND",
+					message: `No tab with id ${validated.tabId}.`,
+					suggestion: "The tab may have been closed. List tabs for valid ids.",
+				},
+			};
+		}
+	}
+
+	// ── 3. Check URL restrictions ───────────────────────────────────────
 	try {
-		const tabUrl = await deps.getActiveTabUrl();
+		const tabUrl = targetTab ? targetTab.url : await deps.getActiveTabUrl();
 		if (tabUrl && isRestrictedUrl(tabUrl)) {
 			return {
 				id,
@@ -100,12 +120,25 @@ export async function handleScreenshot(
 		// If we can't read the tab URL, proceed with best-effort capture.
 	}
 
-	// ── 3. Capture ──────────────────────────────────────────────────────
+	// ── 4. Capture ──────────────────────────────────────────────────────
 	const quality =
 		validated.format === "jpeg" ? (validated.quality ?? 80) : undefined;
 
+	let restoreTabId: number | null = null;
 	try {
-		const dataUrl = await deps.captureVisibleTab(validated.format, quality);
+		if (targetTab && !targetTab.active) {
+			restoreTabId = await deps.getActiveTabIdInWindow(targetTab.windowId);
+			await deps.activateTab(targetTabId);
+			// Let the newly activated tab paint before capture.
+			await new Promise((resolve) => setTimeout(resolve, 150));
+		}
+		const dataUrl = targetTab
+			? await deps.captureVisibleTab(
+					validated.format,
+					quality,
+					targetTab.windowId,
+				)
+			: await deps.captureVisibleTab(validated.format, quality);
 		const base64 = dataUrl.split(",")[1] ?? dataUrl;
 
 		const warning = validated.fullPage
@@ -115,7 +148,7 @@ export async function handleScreenshot(
 		return {
 			id,
 			result: {
-				tabId: deps.activeTabId,
+				tabId: targetTabId,
 				data: base64,
 				format: validated.format,
 				...(warning ? { warning } : {}),
@@ -145,5 +178,9 @@ export async function handleScreenshot(
 			id,
 			error: { code: "UNKNOWN_ACTION", message: `Screenshot failed: ${err}` },
 		};
+	} finally {
+		if (restoreTabId !== null) {
+			await deps.activateTab(restoreTabId).catch(() => undefined);
+		}
 	}
 }

@@ -34,12 +34,14 @@ import {
 	savePort,
 } from "./chrome-storage.js";
 import {
+	activateTab,
 	captureVisibleTab,
 	closeTab,
 	createTab,
 	ensureContentScript,
 	executeScriptInTab,
 	getActiveTabId,
+	getActiveTabIdInWindow,
 	getTab,
 	isRestrictedUrl,
 	listTabs,
@@ -685,8 +687,13 @@ export async function init(logger: Logger): Promise<{
 			return serviceHandleNavigate(id, p, reqTabId, activeTabId);
 		},
 		handleScreenshot: async (id, p) => {
+			const hasTarget =
+				typeof p === "object" &&
+				p !== null &&
+				"tabId" in p &&
+				p.tabId !== undefined;
 			const tabId = activeTabId.current ?? (await getActiveTabId());
-			if (tabId === null) {
+			if (tabId === null && !hasTarget) {
 				return {
 					id,
 					error: {
@@ -699,11 +706,23 @@ export async function init(logger: Logger): Promise<{
 			}
 			return handleScreenshot(id, p, {
 				captureVisibleTab,
+				getTab: async (target) => {
+					const tab = await getTab(target);
+					if (!tab) return null;
+					return {
+						url: tab.url ?? null,
+						windowId: tab.windowId,
+						active: tab.active,
+					};
+				},
+				activateTab,
+				getActiveTabIdInWindow,
 				getActiveTabUrl: async () => {
+					if (tabId === null) return null;
 					const tab = await getTab(tabId);
 					return tab?.url ?? null;
 				},
-				activeTabId: tabId,
+				activeTabId: tabId ?? -1,
 			});
 		},
 		handleListTabs: (id, p) => serviceHandleListTabs(id, p),

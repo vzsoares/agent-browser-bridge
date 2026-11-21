@@ -139,10 +139,8 @@ time, defeating the purpose of the multi-instance feature.
 ### FR-6: Screenshot Limitation
 - `screenshot` continues to use `chrome.tabs.captureVisibleTab()` — it
   captures the active tab in the focused window.
-- A `tabId` parameter on `screenshot` is **not supported** in this phase
-  because Chrome's API cannot screenshot background tabs.
-- If `screenshot` is called with `tabId`, return an error with a suggestion
-  to bring the tab to front first.
+- With a `tabId`, the extension briefly activates that tab, captures its
+  window, and restores the previously active tab.
 
 ### FR-7: Tab Resolution in Message Router
 The message router must resolve the target tab for each request:

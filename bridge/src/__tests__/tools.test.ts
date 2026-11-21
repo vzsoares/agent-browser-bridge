@@ -820,6 +820,29 @@ describe("browser_screenshot", () => {
 			});
 		});
 
+		test("forwards tabId to the extension and surfaces TAB_NOT_FOUND", async () => {
+			await withServer(async (_port, ws) => {
+				const seen: unknown[] = [];
+				ws.onmessage = (event) => {
+					const req = JSON.parse(event.data as string);
+					seen.push(req.params.tabId);
+					ws.send(
+						JSON.stringify({
+							id: req.id,
+							error: {
+								code: "TAB_NOT_FOUND",
+								message: "No tab with id 42.",
+							},
+						}),
+					);
+				};
+
+				const result = await browserScreenshot({ tabId: 42 });
+				expect(seen).toEqual([42]);
+				expectError(result, "No tab with id 42");
+			});
+		});
+
 		test("accepts valid jpeg format", async () => {
 			await withServer(async (_port, ws) => {
 				ws.onmessage = (event) => {

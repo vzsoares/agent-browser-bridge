@@ -122,7 +122,7 @@ If a specified `tabId` no longer exists (the tab was closed), the tool returns a
 
 ### ⚠️ Screenshot limitation
 
-`browser_screenshot` uses Chrome's `captureVisibleTab` API, which can only capture the **active tab in the focused window**. Passing a `tabId` to screenshot a background tab is not supported. To screenshot a specific tab, bring it to the front first.
+`browser_screenshot` uses Chrome's `captureVisibleTab` API, which only sees the active tab of a window. With `tabId`, the extension briefly activates that tab, captures it, and restores the previously active tab.
 
 ## How it works
 

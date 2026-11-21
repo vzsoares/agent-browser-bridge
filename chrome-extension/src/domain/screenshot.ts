@@ -19,6 +19,7 @@ export type ScreenshotFormat = "png" | "jpeg";
 
 /** Raw (pre-validation) screenshot parameters. */
 export interface ScreenshotParams {
+	tabId?: unknown;
 	format?: unknown;
 	quality?: unknown;
 	fullPage?: unknown;
@@ -26,6 +27,8 @@ export interface ScreenshotParams {
 
 /** Validated screenshot parameters ready for capture. */
 export interface ValidScreenshotParams {
+	/** Target tab; the active tab when undefined. */
+	tabId?: number;
 	format: ScreenshotFormat;
 	/** JPEG quality 0‑100. Undefined for PNG. */
 	quality?: number;
@@ -73,6 +76,19 @@ export function validateScreenshotParams(
 
 	const p = params as Record<string, unknown>;
 
+	// ── Validate tabId ───────────────────────────────────────────────────
+	let tabId: number | undefined;
+	if (p.tabId !== undefined) {
+		if (typeof p.tabId !== "number" || !Number.isInteger(p.tabId)) {
+			return {
+				code: "UNKNOWN_ACTION",
+				message: `Invalid tabId: ${String(p.tabId)}. Expected an integer.`,
+				suggestion: "Use a tab id from browser_list_tabs.",
+			};
+		}
+		tabId = p.tabId;
+	}
+
 	// ── Validate format ──────────────────────────────────────────────────
 	let format: ScreenshotFormat = "png";
 	if (p.format !== undefined) {
@@ -108,5 +124,5 @@ export function validateScreenshotParams(
 	// ── Validate fullPage ─────────────────────────────────────────────────
 	const fullPage = Boolean(p.fullPage);
 
-	return { format, quality, fullPage };
+	return { tabId, format, quality, fullPage };
 }

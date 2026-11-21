@@ -379,6 +379,9 @@ describe("handleScreenshot", () => {
 	const fakeDeps = {
 		captureVisibleTab: vi.fn(),
 		getActiveTabUrl: vi.fn(),
+		getTab: vi.fn(),
+		activateTab: vi.fn(),
+		getActiveTabIdInWindow: vi.fn(),
 		activeTabId: 1,
 	};
 
@@ -563,36 +566,71 @@ describe("handleScreenshot", () => {
 		expect(result.error?.code).toBe("RESTRICTED_URL");
 	});
 
-	test("returns UNKNOWN_ACTION when tabId is provided", async () => {
-		const result = await handleScreenshot("req-15", { tabId: 123 }, fakeDeps);
-		expect(result.error).toBeDefined();
-		expect(result.error?.code).toBe("UNKNOWN_ACTION");
-		expect(result.error?.message).toContain("captureVisibleTab");
-		expect(result.error?.message).toContain("active tab");
-		expect(result.error?.suggestion).toBeDefined();
-		expect(result.error?.suggestion).toContain(
-			"Bring the target tab to the front",
-		);
-		// captureVisibleTab should NOT be called
-		expect(fakeDeps.captureVisibleTab).not.toHaveBeenCalled();
-		expect(fakeDeps.getActiveTabUrl).not.toHaveBeenCalled();
-	});
+	describe("with tabId", () => {
+		const png = "data:image/png;base64,AAAA";
+		const targetDeps = (active: boolean) => ({
+			...fakeDeps,
+			getTab: vi.fn().mockResolvedValue({
+				url: "https://example.com",
+				windowId: 9,
+				active,
+			}),
+			activateTab: vi.fn().mockResolvedValue(undefined),
+			getActiveTabIdInWindow: vi.fn().mockResolvedValue(1),
+			captureVisibleTab: vi.fn().mockResolvedValue(png),
+		});
 
-	test("returns UNKNOWN_ACTION when tabId is provided alongside other params", async () => {
-		fakeDeps.getActiveTabUrl.mockResolvedValue("https://example.com");
-		fakeDeps.captureVisibleTab.mockResolvedValue(
-			"data:image/png;base64,shouldnotreach",
-		);
+		test("activates the target, captures its window, restores the previous tab", async () => {
+			const deps = targetDeps(false);
+			const result = await handleScreenshot("r1", { tabId: 123 }, deps);
+			expect(result.error).toBeUndefined();
+			expect(deps.activateTab.mock.calls).toEqual([[123], [1]]);
+			expect(deps.captureVisibleTab).toHaveBeenCalledWith("png", undefined, 9);
+			expect(result.result).toMatchObject({ tabId: 123, data: "AAAA" });
+		});
 
-		const result = await handleScreenshot(
-			"req-16",
-			{ tabId: 456, format: "jpeg", quality: 90 },
-			fakeDeps,
-		);
-		expect(result.error).toBeDefined();
-		expect(result.error?.code).toBe("UNKNOWN_ACTION");
-		expect(result.error?.suggestion).toContain("navigate");
-		expect(fakeDeps.captureVisibleTab).not.toHaveBeenCalled();
+		test("does not switch tabs when the target is already active", async () => {
+			const deps = targetDeps(true);
+			await handleScreenshot("r2", { tabId: 123 }, deps);
+			expect(deps.activateTab).not.toHaveBeenCalled();
+			expect(deps.captureVisibleTab).toHaveBeenCalled();
+		});
+
+		test("restores the previous tab when capture fails", async () => {
+			const deps = targetDeps(false);
+			deps.captureVisibleTab.mockRejectedValue(new Error("boom"));
+			const result = await handleScreenshot("r3", { tabId: 123 }, deps);
+			expect(result.error?.message).toContain("boom");
+			expect(deps.activateTab.mock.calls).toEqual([[123], [1]]);
+		});
+
+		test("returns TAB_NOT_FOUND for an unknown tab", async () => {
+			const deps = targetDeps(false);
+			deps.getTab.mockResolvedValue(null);
+			const result = await handleScreenshot("r4", { tabId: 999 }, deps);
+			expect(result.error?.code).toBe("TAB_NOT_FOUND");
+			expect(deps.activateTab).not.toHaveBeenCalled();
+			expect(deps.captureVisibleTab).not.toHaveBeenCalled();
+		});
+
+		test("blocks a restricted target tab without switching", async () => {
+			const deps = targetDeps(false);
+			deps.getTab.mockResolvedValue({
+				url: "chrome://settings",
+				windowId: 9,
+				active: false,
+			});
+			const result = await handleScreenshot("r5", { tabId: 5 }, deps);
+			expect(result.error?.code).toBe("RESTRICTED_URL");
+			expect(deps.activateTab).not.toHaveBeenCalled();
+		});
+
+		test("rejects a non-integer tabId", async () => {
+			const deps = targetDeps(false);
+			const result = await handleScreenshot("r6", { tabId: "7" }, deps);
+			expect(result.error?.code).toBe("UNKNOWN_ACTION");
+			expect(deps.getTab).not.toHaveBeenCalled();
+		});
 	});
 });
 
